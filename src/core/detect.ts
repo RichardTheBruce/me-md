@@ -16,7 +16,7 @@ export interface TierDecision {
   gpu: HardwareProbe["gpu"];
   /** True when the host is below the recommended floor for even the me tier. */
   belowFloor: boolean;
-  source: "override" | "auto";
+  source: "override" | "saved" | "auto";
   detail: string;
 }
 

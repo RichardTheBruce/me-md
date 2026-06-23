@@ -1,6 +1,7 @@
 import { homedir } from "node:os";
-import { copyFileSync, existsSync, mkdirSync, writeFileSync } from "node:fs";
+import { copyFileSync, existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
+import { isTier, type Tier } from "../tiers.js";
 
 /**
  * The per-install neural net. The package is immutable code; *this* is where a
@@ -11,6 +12,7 @@ import { dirname, join } from "node:path";
  *
  *   <root>/persona/me.md          the human core (seeded once, then evolves)
  *   <root>/corpus.config.json     which .md vaults to index (per host)
+ *   <root>/tier.json              the lineup the user picked on first boot
  *   <root>/index/                 the RAG vector cache (rebuildable; gitignored)
  *   <root>/memories/              freeform memory files the twin can write
  *   <root>/.git                   self-state time machine (tags = snapshots)
@@ -19,6 +21,7 @@ export interface LocalStore {
   root: string;
   personaPath: string;
   corpusConfigPath: string;
+  tierPath: string;
   indexDir: string;
   memoriesDir: string;
 }
@@ -43,9 +46,37 @@ export function resolveStore(): LocalStore {
     root,
     personaPath: join(root, "persona", "me.md"),
     corpusConfigPath: join(root, "corpus.config.json"),
+    tierPath: join(root, "tier.json"),
     indexDir: join(root, "index"),
     memoriesDir: join(root, "memories"),
   };
+}
+
+/**
+ * The tier the user picked on a previous boot, if any. This is the persistent
+ * default that sits between an explicit override (--tier / ME_TIER) and raw
+ * hardware auto-detect, so a one-time choice is remembered across boots.
+ */
+export function readSavedTier(): Tier | undefined {
+  const { tierPath } = resolveStore();
+  if (!existsSync(tierPath)) return undefined;
+  try {
+    const raw = JSON.parse(readFileSync(tierPath, "utf8")) as { tier?: unknown };
+    return typeof raw.tier === "string" && isTier(raw.tier) ? raw.tier : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+/** Persist the user's tier choice so later boots don't re-ask. */
+export function saveTier(tier: Tier): void {
+  const { root, tierPath } = resolveStore();
+  mkdirSync(root, { recursive: true });
+  writeFileSync(
+    tierPath,
+    JSON.stringify({ tier, at: new Date().toISOString() }, null, 2) + "\n",
+    "utf8",
+  );
 }
 
 const BLANK_PERSONA = `# me

@@ -4,7 +4,7 @@ import { readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { loadConfig, loadEnv, type Config } from "./config.js";
-import { parseTier, TIER_PROFILES, type Tier } from "./tiers.js";
+import { parseTier, pickTier, TIER_PROFILES, type Tier } from "./tiers.js";
 import { ask, Session } from "./core/orchestrator.js";
 import { ensureEngine, ensureIndex, ensureModels } from "./core/boot.js";
 import { EngineClient } from "./engine/client.js";
@@ -13,7 +13,7 @@ import { addJournalEntry } from "./journal/journal.js";
 import { loadMcpServers, skippedHttpServers } from "./mcp/loadConfig.js";
 import { McpHub } from "./mcp/client.js";
 import { listSelfStates, rollback, snapshot } from "./selfstate/snapshot.js";
-import { provisionStore } from "./store/local.js";
+import { provisionStore, saveTier } from "./store/local.js";
 import { reviewAction, summarizeFinding } from "./security/sentinel.js";
 import { runGate } from "./loop/verify.js";
 
@@ -50,6 +50,41 @@ function parseStringFlag(args: string[], name: string): string | undefined {
   return undefined;
 }
 
+/**
+ * First-boot lineup picker. Shows the hardware-detected recommendation plus the
+ * two other lineups (they share identical code — only the models differ), then
+ * lets the user accept or override. The caller persists the result so later
+ * boots never re-ask. Runs only on a TTY; never blocks piped/CI invocations.
+ */
+async function chooseTierInteractively(cfg: Config): Promise<Tier> {
+  const recommended = cfg.tier;
+  const isHardwarePick = cfg.tierInfo.source === "auto";
+  const order: Tier[] = ["me", "mega", "giga"];
+
+  console.error("\npick your lineup. all three run the same code — only the models change:\n");
+  for (let i = 0; i < order.length; i++) {
+    const t = order[i] as Tier;
+    const p = TIER_PROFILES[t];
+    const mark =
+      t === recommended ? (isHardwarePick ? "  <- recommended for your hardware" : "  <- current") : "";
+    console.error(`  ${i + 1}) ${p.label}${mark}`);
+    console.error(`       ${p.hardware}`);
+    console.error(
+      `       agent=${p.models.agent}  reasoner=${p.models.reasoner}  coder=${p.models.coder}`,
+    );
+  }
+
+  const rl = createInterface({ input: process.stdin, output: process.stdout });
+  const answer = await new Promise<string>((resolve) => {
+    rl.question(
+      `\npick a lineup [Enter = ${TIER_PROFILES[recommended].label}, or 1/2/3 · me/mega/giga]: `,
+      (a) => resolve(a),
+    );
+  });
+  rl.close();
+  return pickTier(answer, recommended);
+}
+
 /** Mask credentials before printing MCP server args (they come from ~/.claude.json). */
 function redactSecrets(s: string): string {
   return s
@@ -81,6 +116,7 @@ usage:
 flags:
   --pull                    (with up) pull any missing models via ollama
   --no-tools                start the session without MCP tools
+  --pick                    (with up) re-open the interactive lineup picker
   --tier <me|mega|giga>     pin a tier instead of auto-detecting hardware
   --for "<instruction>"     (with gate) what the output was meant to satisfy
   --check-links             (with gate) HTTP-check every cited URL for dead links
@@ -102,8 +138,9 @@ anything else is sent to your twin.`;
  * Single-line startup. Heal the engine, models, and index, connect the MCP
  * hands, then open a stateful prompt that remembers the whole conversation.
  */
-async function up(cfg: Config, flags: Set<string>): Promise<number> {
+async function up(repoRoot: string, cfgIn: Config, flags: Set<string>): Promise<number> {
   const step = (m: string): void => console.error(`  · ${m}`);
+  let cfg = cfgIn;
 
   console.error(cfg.tierInfo.detail);
   if (cfg.tierInfo.belowFloor) {
@@ -115,6 +152,22 @@ async function up(cfg: Config, flags: Set<string>): Promise<number> {
 
   ensureStore(cfg, step);
   console.error(`store: ${cfg.store.root}`);
+
+  // First-boot lineup picker: only when nothing was pinned (--tier/ME_TIER) and
+  // no prior choice was saved, or when the user forces it with --pick. Never on
+  // a non-interactive stream, so piped/CI boots can't hang.
+  const interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY);
+  const wantPick = interactive && (flags.has("--pick") || cfg.tierInfo.source === "auto");
+  if (wantPick) {
+    const picked = await chooseTierInteractively(cfg);
+    saveTier(picked);
+    if (picked !== cfg.tier) {
+      cfg = loadConfig(repoRoot, { tier: picked });
+      console.error(`lineup set to ${TIER_PROFILES[picked].label} (saved).`);
+    } else {
+      console.error(`lineup: ${TIER_PROFILES[picked].label} (saved).`);
+    }
+  }
 
   const eng = await ensureEngine(cfg, step);
   console.error(`engine: ${eng.detail}`);
@@ -209,7 +262,7 @@ async function main(): Promise<void> {
 
   switch (cmd) {
     case "up": {
-      process.exitCode = await up(cfg, flags);
+      process.exitCode = await up(repoRoot, cfg, flags);
       break;
     }
 

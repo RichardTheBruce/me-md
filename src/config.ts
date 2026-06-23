@@ -3,7 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { decideTier, type TierDecision } from "./core/detect.js";
 import { TIER_PROFILES, parseTier, type Tier } from "./tiers.js";
-import { resolveStore, type LocalStore } from "./store/local.js";
+import { readSavedTier, resolveStore, type LocalStore } from "./store/local.js";
 
 export function expandHome(p: string): string {
   if (p === "~") return homedir();
@@ -90,10 +90,27 @@ export function loadEnv(repoRoot: string): void {
   }
 }
 
-/** Resolve the active tier: explicit override > ME_TIER env > hardware auto-detect. */
+/**
+ * Resolve the active tier. Precedence:
+ *   1. explicit override  (--tier flag, then ME_TIER env)  — transient, wins always
+ *   2. saved choice        (~/.me.md/tier.json)            — the first-boot pick
+ *   3. hardware auto-detect (RAM + VRAM probe)             — the default recommendation
+ */
 export function resolveTier(opts: ConfigOptions = {}): TierDecision {
-  const override = opts.tier ?? parseTier(process.env.ME_TIER);
-  return decideTier(override);
+  const explicit = opts.tier ?? parseTier(process.env.ME_TIER);
+  if (explicit) return decideTier(explicit);
+
+  const saved = readSavedTier();
+  if (saved) {
+    const d = decideTier(saved);
+    return {
+      ...d,
+      source: "saved",
+      detail: `tier ${TIER_PROFILES[saved].label} (saved) · ${d.ramGb}GB RAM · ${d.vramGb}GB VRAM (${d.gpu})`,
+    };
+  }
+
+  return decideTier(undefined);
 }
 
 export function loadConfig(repoRoot: string, opts: ConfigOptions = {}): Config {

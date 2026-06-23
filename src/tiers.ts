@@ -132,3 +132,18 @@ export function parseTier(s: string | undefined): Tier | undefined {
   if (t === "giga" || t === "gigame") return "giga";
   return undefined;
 }
+
+/**
+ * Map an interactive menu pick to a tier. Accepts the menu numbers (1/2/3), any
+ * tier alias ("mega", "gigame.md", ...), or an empty string to accept the
+ * offered default. Anything unrecognized also falls back to the default, so a
+ * stray keystroke never derails the boot.
+ */
+export function pickTier(input: string, fallback: Tier): Tier {
+  const t = input.trim().toLowerCase();
+  if (t === "") return fallback;
+  if (t === "1") return "me";
+  if (t === "2") return "mega";
+  if (t === "3") return "giga";
+  return parseTier(t) ?? fallback;
+}

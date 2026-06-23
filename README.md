@@ -39,7 +39,9 @@ Every output an agent produces passes the **loop gate** before it ships, and eve
 
 ## The three tiers
 
-The core code is the same everywhere; a tier only changes the model lineup. On boot, `me up` reads your RAM (`os.totalmem`) and VRAM (`nvidia-smi` / Apple unified memory / `rocm-smi`) and picks the largest tier your hardware clears. Pin it yourself with `--tier` or `ME_TIER`, or install the matching alias package.
+The core code is the same everywhere; a tier only changes the model lineup. On boot, `me up` reads your RAM (`os.totalmem`) and VRAM (`nvidia-smi` / Apple unified memory / `rocm-smi`) and picks the largest tier your hardware clears. On your **first interactive boot** it shows that recommendation and lets you pick any of the three lineups — the choice is saved to `~/.me.md/tier.json` so later boots never re-ask (re-open it any time with `me up --pick`). Or skip the prompt entirely: pin a tier with `--tier` / `ME_TIER`, or install the matching alias package.
+
+Resolution precedence is `--tier` flag → `ME_TIER` env → your saved choice → hardware auto-detect, so an explicit override always wins and piped/CI boots never block on the prompt.
 
 | | **me.md** | **megame.md** | **gigame.md** |
 | --- | --- | --- | --- |
