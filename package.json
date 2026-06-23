@@ -21,7 +21,9 @@
     "corpus.config.json",
     "scripts/bootstrap.sh",
     "scripts/bootstrap.ps1",
-    "README.md"
+    "README.md",
+    "LICENSE",
+    "NOTICE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.json",
@@ -42,7 +44,7 @@
     "neural-net"
   ],
   "author": "Richard Wayne (RichardTheBruce)",
-  "license": "UNLICENSED",
+  "license": "Apache-2.0",
   "private": false,
   "engines": {
     "node": ">=20"

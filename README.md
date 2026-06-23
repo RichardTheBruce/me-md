@@ -161,3 +161,18 @@ The orchestrator is pure TypeScript and needs no Python. When real hardware is a
 - **Self**: `me.md`, the human core, always loaded.
 - **Memory**: your `.md` world, retrieved per query.
 - **Hands**: your MCP servers, interlinked into one orchestrator.
+
+## Built by RichardTheBruce
+
+`me.md` is built and maintained by **RichardTheBruce**. It is free and open under [Apache-2.0](LICENSE) — use it, fork it, ship it. The only payment asked is attribution:
+
+- ⭐ **Star the repo:** [github.com/RichardTheBruce/me-md](https://github.com/RichardTheBruce/me-md)
+- 👤 **Follow the author:** [@RichardTheBruce](https://github.com/RichardTheBruce)
+
+If this twin earns a place on your machine and you want to buy me a coffee, send **$5 in any token on any EVM chain** (Ethereum, Base, etc.) to:
+
+```
+0x337c623fF3634b1dD2f64Ca3674aaFdB0cbdf7b4
+```
+
+Entirely optional — the star and the follow mean just as much.
