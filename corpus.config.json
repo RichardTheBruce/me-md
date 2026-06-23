@@ -1,0 +1,6 @@
+{
+  "_comment": "The .md roots your twin reads, retrieved semantically per query. Ships EMPTY: add one entry per folder of notes you want indexed. Paths are per-host; '~' expands to your home directory. Example root: { \"label\": \"notes\", \"path\": \"~/notes\", \"glob\": \"**/*.md\" }. The persona core (src/persona/me.md) is always loaded regardless of this file. Edit your own copy in ~/.me.md/corpus.config.json, not the package.",
+  "roots": [],
+  "exclude": ["**/node_modules/**", "**/.git/**", "**/.next/**", "**/dist/**"],
+  "chunk": { "maxChars": 1200, "overlap": 150 }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "gigame.md",
+  "version": "0.1.0",
+  "description": "me.md pinned to the giga tier (256 GB+ class hardware). Same digital-twin core; the largest default model lineup.",
+  "type": "module",
+  "bin": {
+    "gigame": "bin/gigame.js"
+  },
+  "files": [
+    "bin",
+    "README.md"
+  ],
+  "keywords": [
+    "local-llm",
+    "digital-twin",
+    "orchestrator",
+    "me.md"
+  ],
+  "author": "Richard Wayne (RichardTheBruce)",
+  "license": "UNLICENSED",
+  "private": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "me.md": "workspace:^0.1.0"
+  }
+}

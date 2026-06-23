@@ -1,0 +1,28 @@
+{
+  "name": "megame.md",
+  "version": "0.1.0",
+  "description": "me.md pinned to the mega tier (~128 GB class hardware). Same digital-twin core; bigger default model lineup.",
+  "type": "module",
+  "bin": {
+    "megame": "bin/megame.js"
+  },
+  "files": [
+    "bin",
+    "README.md"
+  ],
+  "keywords": [
+    "local-llm",
+    "digital-twin",
+    "orchestrator",
+    "me.md"
+  ],
+  "author": "Richard Wayne (RichardTheBruce)",
+  "license": "UNLICENSED",
+  "private": false,
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "me.md": "workspace:^0.1.0"
+  }
+}
