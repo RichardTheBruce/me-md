@@ -61,4 +61,12 @@ export type {
   SourceReport,
   SourceCheckOptions,
 } from "./loop/sources.js";
+export { buildBrainGraph } from "./brain/graph.js";
+export type { BrainGraph, BrainNode, BrainEdge, BrainMeta } from "./brain/graph.js";
+export { serveBrain, openBrowser } from "./brain/server.js";
+export type { BrainServer, BrainServeOptions } from "./brain/server.js";
+export { brainVersion, packageVersion } from "./brain/version.js";
+export type { BrainVersion } from "./brain/version.js";
+export { checkForUpdate, applyUpdate, cmpSemver } from "./update.js";
+export type { UpdateInfo } from "./update.js";
 export type { TaskKind, ChatMessage, ToolDef } from "./types.js";

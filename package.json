@@ -18,6 +18,7 @@
   "files": [
     "dist",
     "src/persona/me.md",
+    "src/brain/app",
     "corpus.config.json",
     "scripts/bootstrap.sh",
     "scripts/bootstrap.ps1",

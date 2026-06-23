@@ -16,6 +16,8 @@ import { listSelfStates, rollback, snapshot } from "./selfstate/snapshot.js";
 import { provisionStore, saveTier } from "./store/local.js";
 import { reviewAction, summarizeFinding } from "./security/sentinel.js";
 import { runGate } from "./loop/verify.js";
+import { serveBrain, openBrowser, type BrainServer } from "./brain/server.js";
+import { checkForUpdate, applyUpdate } from "./update.js";
 
 /** Ensure the per-install store exists + is seeded. Cheap + idempotent. */
 function ensureStore(cfg: Config, log: (m: string) => void = () => {}): void {
@@ -108,6 +110,8 @@ usage:
   me self snapshot [note]   tag the current self-state
   me self list              list self-states
   me self rollback <tag>    roll back to a self-state
+  me brain                  open your neural net in the browser (3D quantum view)
+  me update [--apply]       check for a newer release (--apply installs it)
   me tiers                  show the three tiers + detected hardware
   me guard "<tool>" '<json>'  dry-run the security sentinel on a tool call
   me gate <file>            run the loop gate on a file (security + sources + judge)
@@ -117,6 +121,8 @@ flags:
   --pull                    (with up) pull any missing models via ollama
   --no-tools                start the session without MCP tools
   --pick                    (with up) re-open the interactive lineup picker
+  --port <n>                (with brain) serve the neural net on a specific port
+  --no-open                 (with brain) start the server without opening a browser
   --tier <me|mega|giga>     pin a tier instead of auto-detecting hardware
   --for "<instruction>"     (with gate) what the output was meant to satisfy
   --check-links             (with gate) HTTP-check every cited URL for dead links
@@ -125,12 +131,14 @@ flags:
 env:
   ME_NO_TOOLS=1             disable MCP tools for a single chat
   ME_TIER=me|mega|giga      pin the tier (overridden by --tier)
+  ME_UPDATE_CHECK=0         skip the one-line "newer release" check on boot
 `;
 
 const REPL_HELP = `interactive commands:
   /exit                  leave the session
   /journal <entry>       append a decision to your persona core
   /snapshot [note]       tag the current self-state
+  /mebrain               open your neural net in the browser (3D quantum view)
   /help                  show this help
 anything else is sent to your twin.`;
 
@@ -148,6 +156,15 @@ async function up(repoRoot: string, cfgIn: Config, flags: Set<string>): Promise<
       "  (this host is below the recommended floor for the smallest tier; " +
         "the models may not fit. Point ME_ENGINE_BASE_URL at a real box, or override with --tier.)",
     );
+  }
+
+  // One-line "a newer self is available" nudge. Opt out with ME_UPDATE_CHECK=0;
+  // TTY-only + short timeout + fully swallowed, so it never blocks a boot.
+  if (process.stdout.isTTY && process.env.ME_UPDATE_CHECK !== "0") {
+    const info = await checkForUpdate(repoRoot);
+    if (info.newer) {
+      console.error(`  ↑ newer self available: ${info.name} ${info.current} -> ${info.latest} (run 'me update')`);
+    }
   }
 
   ensureStore(cfg, step);
@@ -198,6 +215,7 @@ async function up(repoRoot: string, cfgIn: Config, flags: Set<string>): Promise<
   console.error("\nme.md is up. you're talking to yourself. /help for commands, /exit to leave.\n");
 
   const rl = createInterface({ input: process.stdin, output: process.stdout, prompt: "me ▸ " });
+  let brain: BrainServer | undefined;
   rl.prompt();
 
   for await (const line of rl) {
@@ -229,6 +247,21 @@ async function up(repoRoot: string, cfgIn: Config, flags: Set<string>): Promise<
       rl.prompt();
       continue;
     }
+    if (text === "/mebrain" || text === "/brain") {
+      try {
+        if (!brain) {
+          brain = await serveBrain(cfg, { onStep: step });
+          console.log(`your neural net is live at ${brain.url} (stays up until /exit)`);
+        } else {
+          openBrowser(brain.url);
+          console.log(`reopened your neural net at ${brain.url}`);
+        }
+      } catch (e) {
+        console.error(`couldn't open the brain: ${e instanceof Error ? e.message : String(e)}`);
+      }
+      rl.prompt();
+      continue;
+    }
 
     try {
       const result = await session.send(text);
@@ -246,6 +279,7 @@ async function up(repoRoot: string, cfgIn: Config, flags: Set<string>): Promise<
   }
 
   rl.close();
+  if (brain) await brain.close();
   await session.close();
   console.error("\nencoded. see you next boot.\n");
   return 0;
@@ -420,6 +454,52 @@ async function main(): Promise<void> {
       for (const r of report.reasons) console.log(`  - ${r}`);
       if (report.critique) console.log("\ncritique:\n" + report.critique);
       process.exitCode = report.status === "reject" ? 2 : report.status === "iterate" ? 1 : 0;
+      break;
+    }
+
+    case "update": {
+      const info = await checkForUpdate(repoRoot);
+      if (!info.latest) {
+        console.log(`couldn't reach the registry (offline?). you're on ${info.name}@${info.current}.`);
+        break;
+      }
+      if (!info.newer) {
+        console.log(`you're on the latest self: ${info.name}@${info.current}.`);
+        break;
+      }
+      console.log(`a newer self is available: ${info.name} ${info.current} -> ${info.latest}`);
+      if (flags.has("--apply")) {
+        console.error("  · installing globally via npm…");
+        try {
+          await applyUpdate(info.name);
+          console.log(`updated to ${info.name}@${info.latest}. your ~/.me.md store carries forward untouched.`);
+        } catch (e) {
+          console.error(`update failed: ${e instanceof Error ? e.message : String(e)}`);
+          console.error(`try manually: npm install -g ${info.name}@latest`);
+          process.exitCode = 1;
+        }
+      } else {
+        console.log(`run:  npm install -g ${info.name}@latest    (or: me update --apply)`);
+      }
+      break;
+    }
+
+    case "brain": {
+      ensureStore(cfg);
+      const portFlag = parseStringFlag(rest, "port");
+      const brain = await serveBrain(cfg, {
+        port: portFlag ? Number(portFlag) : undefined,
+        open: !flags.has("--no-open"),
+        onStep: (m) => console.error(`  · ${m}`),
+      });
+      console.log(`\nyour neural net is live: ${brain.url}`);
+      console.error("drag to navigate · scroll to zoom · MORPH to reshape. Ctrl-C to close.\n");
+      await new Promise<void>((resolve) => {
+        process.on("SIGINT", () => resolve());
+        process.on("SIGTERM", () => resolve());
+      });
+      await brain.close();
+      console.error("\nbrain closed.\n");
       break;
     }
 

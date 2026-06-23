@@ -107,7 +107,7 @@ me ▸ /snapshot locked engine decoupling
 me ▸ /exit
 ```
 
-In-session commands: `/journal <entry>`, `/snapshot [note]`, `/help`, `/exit`. Flags: `--pull` (fetch missing models), `--no-tools` (skip MCP).
+In-session commands: `/journal <entry>`, `/snapshot [note]`, `/mebrain` (open the 3D view), `/help`, `/exit`. Flags: `--pull` (fetch missing models), `--no-tools` (skip MCP).
 
 From a fresh machine, the bootstrap scripts collapse install + boot into one line:
 
@@ -119,6 +119,30 @@ curl -fsSL https://raw.githubusercontent.com/RichardTheBruce/me-md/main/scripts/
 ```powershell
 # Windows
 irm https://raw.githubusercontent.com/RichardTheBruce/me-md/main/scripts/bootstrap.ps1 | iex
+```
+
+## See your neural net — `me brain`
+
+Your world isn't a list of files; it's a shape. `me brain` (or `/mebrain` inside a session) projects every `.md` in your corpus into a 3D **quantum neural net** and opens it in your browser:
+
+- **nodes** are your files — persona core, memories, every note — sized by how connected they are;
+- **threads** are the links between them: explicit `[[wikilinks]]` / markdown links, plus semantic kinship drawn from your embeddings once you've run `me index`;
+- **drag** to orbit and navigate your brain, **scroll** to zoom, and **MORPH** to reshape it — the sphere unfurls into its true semantic structure with a bloom that surges as it changes. **FREEZE** holds the rotation, **RESET** recenters, and the **CRYSTAL** panel tunes density, glow, and palette (warm gold ↔ violet).
+
+It runs fully local — a tiny built-in server, nothing leaves your machine (the 3D engine loads from a CDN the first time). The header stamps which release you're on, which self-state you've evolved to, and a digest of your corpus, so a glance tells you which "you" you're looking at.
+
+```bash
+me brain                 # open the quantum view in your browser
+me brain --no-open       # just serve it and print the URL
+```
+
+## Staying current — `me update`
+
+The package is immutable code; your `~/.me.md` store is the evolving you — so new capabilities ship without ever touching your self. `me update` checks the registry; `me update --apply` installs the latest release, and your persona, corpus, and self-states carry forward untouched. Every interactive boot prints a one-line nudge when a newer self is available (silence it with `ME_UPDATE_CHECK=0`).
+
+```bash
+me update                # is there a newer me?
+me update --apply        # install it (npm i -g <pkg>@latest)
 ```
 
 ## Commands
@@ -133,6 +157,8 @@ irm https://raw.githubusercontent.com/RichardTheBruce/me-md/main/scripts/bootstr
 | `me self snapshot` | Tag the current self-state in git (`self/<date>`). |
 | `me self list` | List all self-state snapshots. |
 | `me self rollback <tag>` | Roll back to a self-state you prefer. |
+| `me brain` | Open your corpus as a 3D quantum neural net in the browser (`/mebrain` in-session). |
+| `me update [--apply]` | Check the registry for a newer release; `--apply` installs it. |
 | `me tiers` | Show the three tiers + your detected hardware + the active tier. |
 | `me guard "<tool>" '<json>'` | Dry-run the security sentinel on a tool call (exit 2 = block). |
 | `me gate <file>` | Run the loop gate on a file: security + sources + judge (exit 1 iterate, 2 reject). |
