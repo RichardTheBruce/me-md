@@ -18,15 +18,15 @@ export interface BrainNode {
   group: string;
   /** Absolute source path, for the tooltip. */
   path: string;
-  /** How many chunks / how much text — drives node size. */
+  /** How many chunks / how much text. Drives node size. */
   weight: number;
-  /** Edge count, filled after edges are built — also drives node size + color. */
+  /** Edge count, filled after edges are built. Also drives node size + color. */
   degree: number;
   /** Semantic position from PCA over embeddings (meaningful clustering). */
   semantic: [number, number, number];
   /** Iconic shell position (fibonacci sphere), ordered by PC1. */
   sphere: [number, number, number];
-  /** Flat galaxy spiral — the always-available alternate MORPH target. */
+  /** Flat galaxy spiral: the always-available alternate MORPH target. */
   galaxy: [number, number, number];
 }
 
@@ -36,7 +36,7 @@ export interface BrainEdge {
   a: number;
   /** Target node index. */
   b: number;
-  /** 0..1 strength — links are strong, kinship scales with cosine similarity. */
+  /** 0..1 strength. Links are strong, kinship scales with cosine similarity. */
   weight: number;
   /** "link" (explicit md/wikilink) or "kin" (embedding similarity). */
   kind: "link" | "kin";
@@ -48,7 +48,7 @@ export interface BrainMeta {
   groups: string[];
   /** True when nodes carry real embedding positions (index was built). */
   embedded: boolean;
-  /** Short content hash of the corpus — changes when your world changes. */
+  /** Short content hash of the corpus, changes when your world changes. */
   digest: string;
   builtAt: string;
 }
@@ -135,8 +135,23 @@ export function buildBrainGraph(cfg: Config): BrainGraph {
 
 function collectFiles(cfg: Config): FileNode[] {
   const fromIndex = collectFromIndex(cfg);
-  if (fromIndex.length > 0) return fromIndex;
-  return collectFromDisk(cfg);
+  if (fromIndex.length === 0) return collectFromDisk(cfg);
+
+  // Union the index (real embeddings → meaningful semantic layout) with any
+  // on-disk .md the index hasn't caught up to yet. This is what makes the net
+  // grow live: a session log written seconds ago appears as a new node right
+  // away (with a scatter position + link edges) before the next `me index`
+  // folds it into the semantic map. Dedup is case-insensitive for Windows.
+  const key = (p: string): string => p.toLowerCase();
+  const seen = new Set(fromIndex.map((f) => key(f.path)));
+  const merged = [...fromIndex];
+  for (const f of collectFromDisk(cfg)) {
+    const k = key(f.path);
+    if (seen.has(k)) continue;
+    seen.add(k);
+    merged.push(f);
+  }
+  return merged;
 }
 
 /** Aggregate index chunks into one node per source file (mean embedding). */
@@ -257,12 +272,12 @@ function walkMd(root: string, exclude: string[]): string[] {
 }
 
 // ---------------------------------------------------------------------------
-// 2. semantic layout — PCA over embeddings, projected to 3D
+// 2. semantic layout: PCA over embeddings, projected to 3D
 // ---------------------------------------------------------------------------
 
 /**
  * Project file embeddings to 3D via PCA. Works in sample space (eigenvectors of
- * the n×n Gram matrix), since #files << embedding dim — cheap and dependency
+ * the n×n Gram matrix), since #files << embedding dim, cheap and dependency
  * free. Without embeddings, returns a deterministic pseudo-random cloud that
  * MORPH can still pull into the sphere.
  */
@@ -388,7 +403,7 @@ function scatter(seed: string, i: number): [number, number, number] {
 }
 
 // ---------------------------------------------------------------------------
-// 3. sphere layout — the iconic shell, ordered so neighbours sit together
+// 3. sphere layout: the iconic shell, ordered so neighbours sit together
 // ---------------------------------------------------------------------------
 
 function orderByFirstAxis(pts: [number, number, number][]): number[] {
@@ -401,7 +416,7 @@ function orderByFirstAxis(pts: [number, number, number][]): number[] {
 /**
  * A flat-ish galaxy: a golden-angle spiral disc with a thicker core and a thin
  * rim. Always available (no embeddings needed), so MORPH always has somewhere
- * to fly to — the sphere unfurls into a spiral and back.
+ * to fly to. The sphere unfurls into a spiral and back.
  */
 function galaxySpiral(files: FileNode[], order: number[]): [number, number, number][] {
   const n = files.length;
@@ -434,7 +449,7 @@ function fibonacciSphere(n: number, order: number[]): [number, number, number][]
 }
 
 // ---------------------------------------------------------------------------
-// 4. edges — explicit md/wikilinks (strong) + embedding kinship (faint)
+// 4. edges: explicit md/wikilinks (strong) + embedding kinship (faint)
 // ---------------------------------------------------------------------------
 
 function buildEdges(files: FileNode[], embedded: boolean): BrainEdge[] {
@@ -531,7 +546,7 @@ function hashNum(s: string): number {
   return h >>> 0;
 }
 
-/** Short, stable hash of the corpus shape — drives the brain's version digest. */
+/** Short, stable hash of the corpus shape, drives the brain's version digest. */
 function corpusDigest(files: FileNode[]): string {
   const h = createHash("sha256");
   for (const f of [...files].sort((a, b) => a.path.localeCompare(b.path))) {

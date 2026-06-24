@@ -8,6 +8,7 @@ import { McpHub } from "../mcp/client.js";
 import { loadMcpServers } from "../mcp/loadConfig.js";
 import { toolsToOpenAI } from "../mcp/toolBridge.js";
 import { reviewAction, summarizeFinding, type RiskLevel } from "../security/sentinel.js";
+import { encodeSession, type EncodeResult, type Turn } from "../journal/session.js";
 import type { ChatMessage, TaskKind, ToolDef } from "../types.js";
 
 export interface AskOptions {
@@ -39,6 +40,8 @@ export interface SessionOptions {
   security?: boolean;
   /** Block at or above this risk level (default "critical"). */
   blockAt?: RiskLevel;
+  /** Continuity note from the prior session, prepended to the system prompt. */
+  recap?: string;
   onStep?: (msg: string) => void;
 }
 
@@ -66,6 +69,8 @@ export class Session {
   private gateModel: string | undefined;
   private deepModel: string | undefined;
   private log: (msg: string) => void;
+  /** Every exchange this session has had, for encode() to flush to disk. */
+  private transcript: Turn[] = [];
 
   constructor(
     private cfg: Config,
@@ -78,7 +83,8 @@ export class Session {
     this.blockAt = opts.blockAt ?? "critical";
     this.engine = new EngineClient(cfg.engine);
     this.registry = buildRegistry(cfg.models);
-    const system = composeSystemPrompt(loadPersona(cfg.personaPath), []);
+    const base = composeSystemPrompt(loadPersona(cfg.personaPath), []);
+    const system = opts.recap && opts.recap.trim() ? `${opts.recap.trim()}\n\n${base}` : base;
     this.messages = [{ role: "system", content: system }];
   }
 
@@ -141,6 +147,13 @@ export class Session {
       });
       if (result.toolCalls.length === 0 || !this.hub || toolRounds >= this.maxToolRounds) {
         this.messages.push({ role: "assistant", content: result.content });
+        this.transcript.push({
+          at: new Date().toISOString(),
+          prompt,
+          answer: result.content,
+          model: result.model,
+          kind: decision.kind,
+        });
         return {
           answer: result.content,
           model: result.model,
@@ -176,7 +189,7 @@ export class Session {
           });
           if (finding.verdict === "block") {
             blocked++;
-            this.log(`BLOCKED ${call.function.name} — ${summarizeFinding(finding)}`);
+            this.log(`BLOCKED ${call.function.name}: ${summarizeFinding(finding)}`);
             this.messages.push({
               role: "tool",
               content:
@@ -189,7 +202,7 @@ export class Session {
           }
           if (finding.verdict === "flag") {
             flagged++;
-            this.log(`flagged ${call.function.name} — ${summarizeFinding(finding)}`);
+            this.log(`flagged ${call.function.name}: ${summarizeFinding(finding)}`);
           }
         }
 
@@ -203,6 +216,42 @@ export class Session {
         });
       }
     }
+  }
+
+  /**
+   * Record an exchange that did not go through the engine (e.g. the brain chat
+   * panel when no Ollama is running). The net still grows from raw usage.
+   */
+  recordExternalTurn(prompt: string, answer: string): Turn {
+    const turn: Turn = { at: new Date().toISOString(), prompt, answer };
+    this.transcript.push(turn);
+    return turn;
+  }
+
+  /** The most recent exchange, for per-turn growth (the chat panel). */
+  lastTurn(): Turn | undefined {
+    return this.transcript[this.transcript.length - 1];
+  }
+
+  /** Return the buffered turns and clear them. */
+  drainTranscript(): Turn[] {
+    const out = this.transcript;
+    this.transcript = [];
+    return out;
+  }
+
+  /** True when there are unencoded exchanges waiting to be flushed. */
+  get hasUnencoded(): boolean {
+    return this.transcript.length > 0;
+  }
+
+  /**
+   * Encode the whole conversation to a session node and fold its decisions into
+   * the persona thumbprint. Drains the buffer so a later close() is a no-op.
+   * Returns null when there was nothing to encode.
+   */
+  encode(): EncodeResult | null {
+    return encodeSession(this.cfg.store, this.cfg.personaPath, this.drainTranscript());
   }
 
   async close(): Promise<void> {

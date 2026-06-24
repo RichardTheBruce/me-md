@@ -10,6 +10,7 @@ import { ensureEngine, ensureIndex, ensureModels } from "./core/boot.js";
 import { EngineClient } from "./engine/client.js";
 import { buildIndex } from "./rag/index.js";
 import { addJournalEntry } from "./journal/journal.js";
+import { latestSessionRecap, recapForPrompt } from "./journal/session.js";
 import { loadMcpServers, skippedHttpServers } from "./mcp/loadConfig.js";
 import { McpHub } from "./mcp/client.js";
 import { listSelfStates, rollback, snapshot } from "./selfstate/snapshot.js";
@@ -54,7 +55,7 @@ function parseStringFlag(args: string[], name: string): string | undefined {
 
 /**
  * First-boot lineup picker. Shows the hardware-detected recommendation plus the
- * two other lineups (they share identical code — only the models differ), then
+ * two other lineups (they share identical code, only the models differ), then
  * lets the user accept or override. The caller persists the result so later
  * boots never re-ask. Runs only on a TTY; never blocks piped/CI invocations.
  */
@@ -63,7 +64,7 @@ async function chooseTierInteractively(cfg: Config): Promise<Tier> {
   const isHardwarePick = cfg.tierInfo.source === "auto";
   const order: Tier[] = ["me", "mega", "giga"];
 
-  console.error("\npick your lineup. all three run the same code — only the models change:\n");
+  console.error("\npick your lineup. all three run the same code, only the models change:\n");
   for (let i = 0; i < order.length; i++) {
     const t = order[i] as Tier;
     const p = TIER_PROFILES[t];
@@ -170,6 +171,11 @@ async function up(repoRoot: string, cfgIn: Config, flags: Set<string>): Promise<
   ensureStore(cfg, step);
   console.error(`store: ${cfg.store.root}`);
 
+  // Decode: surface where the last session left off and carry the thread forward
+  // into the system prompt, so the twin resumes instead of starting cold.
+  const recap = latestSessionRecap(cfg.store);
+  if (recap) console.error(`  ↩ picking up from ${recap.label}: "${recap.line}"`);
+
   // First-boot lineup picker: only when nothing was pinned (--tier/ME_TIER) and
   // no prior choice was saved, or when the user forces it with --pick. Never on
   // a non-interactive stream, so piped/CI boots can't hang.
@@ -208,7 +214,7 @@ async function up(repoRoot: string, cfgIn: Config, flags: Set<string>): Promise<
   console.error(`index: ${idx.detail}`);
 
   const useTools = !flags.has("--no-tools") && process.env.ME_NO_TOOLS !== "1";
-  const session = new Session(cfg, { useTools, onStep: step });
+  const session = new Session(cfg, { useTools, onStep: step, recap: recapForPrompt(recap) });
   const conn = await session.connect();
   if (useTools) console.error(`hands: ${conn.connected}/${conn.servers} MCP servers, ${conn.tools} tools`);
 
@@ -280,8 +286,21 @@ async function up(repoRoot: string, cfgIn: Config, flags: Set<string>): Promise<
 
   rl.close();
   if (brain) await brain.close();
+  // Encode: flush the whole conversation to a session node + fold decisions into
+  // the persona thumbprint. This is what makes the net grow on the next boot.
+  const enc = session.encode();
   await session.close();
-  console.error("\nencoded. see you next boot.\n");
+  if (enc) {
+    const deci = enc.decisions.length
+      ? ` · ${enc.decisions.length} decision${enc.decisions.length === 1 ? "" : "s"} → thumbprint`
+      : "";
+    console.error(
+      `\nencoded → memories/sessions/${enc.label}.md · ${enc.turns} turn${enc.turns === 1 ? "" : "s"}${deci}.` +
+        "\nyour net grew. run 'me brain' to watch it.\n",
+    );
+  } else {
+    console.error("\nencoded. see you next boot.\n");
+  }
   return 0;
 }
 

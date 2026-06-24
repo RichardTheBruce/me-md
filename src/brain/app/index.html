@@ -102,6 +102,60 @@
       #tip .g { color: var(--dim); font-size: 11px; }
       #tip .p { color: #9a948a; font-size: 10px; overflow: hidden; text-overflow: ellipsis; }
 
+      /* bottom-left chat panel: talk to your brain, watch it grow */
+      #chat {
+        bottom: 26px; left: 20px; width: 322px; max-width: 42vw;
+        background: var(--panel);
+        border: 1px solid rgba(255, 207, 107, 0.16);
+        border-radius: 12px;
+        backdrop-filter: blur(8px);
+        display: flex; flex-direction: column; overflow: hidden;
+      }
+      #chat .cap {
+        display: flex; align-items: center; justify-content: space-between;
+        letter-spacing: 0.22em; font-size: 11px; color: #cdbf99;
+        padding: 12px 14px; cursor: pointer; user-select: none;
+      }
+      #chat .cap .dot { font-size: 9px; color: #66ffd0; text-shadow: 0 0 8px rgba(102,255,208,0.7); }
+      #chat .cap .dot.off { color: #6f6a60; text-shadow: none; }
+      #chat.collapsed #chatBody { display: none; }
+      #chatBody { display: flex; flex-direction: column; min-height: 0; }
+      #chatLog {
+        padding: 2px 14px 8px; overflow-y: auto; max-height: 34vh;
+        display: flex; flex-direction: column; gap: 9px;
+      }
+      #chatLog .msg .who { font-size: 9px; letter-spacing: 0.14em; color: var(--dim); margin-bottom: 2px; }
+      #chatLog .msg .bubble { white-space: pre-wrap; word-break: break-word; line-height: 1.5; }
+      #chatLog .msg.you .bubble { color: #e9e2cf; }
+      #chatLog .msg.me .bubble { color: #ffcf6b; }
+      #chatLog .hintline { color: #6f6a60; font-size: 11px; line-height: 1.5; }
+      #chatForm {
+        display: flex; gap: 8px; padding: 10px 12px 12px;
+        border-top: 1px solid rgba(255, 207, 107, 0.12);
+      }
+      #chatInput {
+        flex: 1; font: inherit; color: var(--ink); min-width: 0;
+        background: rgba(0, 0, 0, 0.35); border: 1px solid rgba(255, 207, 107, 0.2);
+        border-radius: 8px; padding: 8px 10px; outline: none;
+      }
+      #chatInput:focus { border-color: rgba(255, 207, 107, 0.5); }
+      #chatSend {
+        font: inherit; font-size: 11px; letter-spacing: 0.16em; color: #ffcf6b;
+        background: transparent; border: 1px solid rgba(255, 207, 107, 0.4);
+        border-radius: 8px; padding: 0 14px; cursor: pointer;
+        transition: box-shadow 0.2s, opacity 0.2s;
+      }
+      #chatSend:hover { box-shadow: 0 0 16px rgba(255, 180, 80, 0.35); }
+      #chatSend:disabled { opacity: 0.45; cursor: default; box-shadow: none; }
+      /* grow toast */
+      #grew {
+        position: fixed; left: 20px; bottom: 92px; z-index: 12;
+        color: #66ffd0; font-size: 12px; letter-spacing: 0.06em; pointer-events: none;
+        opacity: 0; transform: translateY(6px); transition: opacity 0.3s, transform 0.3s;
+        text-shadow: 0 0 12px rgba(102, 255, 208, 0.6);
+      }
+      #grew.show { opacity: 1; transform: translateY(0); }
+
       /* hint + boot/error overlays */
       #hint {
         position: fixed; bottom: 26px; right: 22px; z-index: 10;
@@ -147,6 +201,23 @@
 
     <div id="tip"><div class="t"></div><div class="g"></div><div class="p"></div></div>
     <div id="hint" class="hud">drag to navigate · scroll to zoom · morph to reshape</div>
+
+    <div id="chat" class="hud">
+      <div class="cap" id="chatCap">
+        <span>TALK TO YOUR BRAIN</span>
+        <span class="dot off" id="chatDot" title="engine status">●</span>
+      </div>
+      <div id="chatBody">
+        <div id="chatLog">
+          <div class="hintline">say anything: every message becomes a star in your net.</div>
+        </div>
+        <form id="chatForm">
+          <input id="chatInput" type="text" autocomplete="off" placeholder="talk to yourself…" />
+          <button id="chatSend" type="submit">SEND</button>
+        </form>
+      </div>
+    </div>
+    <div id="grew">✦ your net grew</div>
 
     <div id="curtain">
       <div class="big">waking the net<span class="spark"> ◇</span></div>

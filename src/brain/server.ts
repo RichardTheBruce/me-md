@@ -1,9 +1,12 @@
 import { spawn } from "node:child_process";
 import { existsSync, readFileSync } from "node:fs";
-import { createServer, type Server } from "node:http";
+import { createServer, type IncomingMessage, type Server, type ServerResponse } from "node:http";
 import { dirname, extname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Config } from "../config.js";
+import { EngineClient } from "../engine/client.js";
+import { Session } from "../core/orchestrator.js";
+import { appendExchange, latestSessionRecap, recapForPrompt } from "../journal/session.js";
 import { buildBrainGraph } from "./graph.js";
 import { brainVersion } from "./version.js";
 
@@ -29,7 +32,18 @@ const MIME: Record<string, string> = {
   ".json": "application/json; charset=utf-8",
 };
 
-/** Where the static brain app lives — works from dist (built) and src (tsx). */
+/** Max chat message we accept, and max request body we read. */
+const MAX_MESSAGE_CHARS = 8000;
+const MAX_BODY_BYTES = 65536;
+/** Engine health is cached briefly so /chat never hammers a missing endpoint. */
+const HEALTH_TTL_MS = 4000;
+
+const NO_ENGINE_NOTE =
+  "i saved what you said. it's now part of your net (watch it grow). " +
+  "i can't think out loud yet, though: no local engine is running. " +
+  "start one with `me up` (Ollama) and i'll talk back.";
+
+/** Where the static brain app lives. Works from dist (built) and src (tsx). */
 function assetsDir(cfg: Config): string {
   const candidates = [
     join(cfg.repoRoot, "src", "brain", "app"),
@@ -40,31 +54,161 @@ function assetsDir(cfg: Config): string {
   return candidates[0] as string;
 }
 
+/** Build the current graph + version as a JSON payload string (fresh each call). */
+function graphPayload(cfg: Config): { json: string; nodes: number; edges: number; digest: string } {
+  const graph = buildBrainGraph(cfg);
+  const version = brainVersion(cfg);
+  return {
+    json: JSON.stringify({ graph, version }),
+    nodes: graph.meta.nodes,
+    edges: graph.meta.edges,
+    digest: graph.meta.digest,
+  };
+}
+
 /**
  * Build the neural-net graph from your world and serve the quantum view on a
- * local port. Returns a handle so callers (the REPL) can keep it warm and close
- * it on exit, or (the standalone command) can wait on it until Ctrl-C.
+ * local port. The view is live: it talks to your twin (POST /chat) and grows a
+ * node every message, and /graph.json rebuilds on request so new stars appear.
  */
 export async function serveBrain(cfg: Config, opts: BrainServeOptions = {}): Promise<BrainServer> {
   const step = opts.onStep ?? (() => {});
   const dir = assetsDir(cfg);
 
   step("projecting your world into 3D…");
-  const graph = buildBrainGraph(cfg);
-  const version = brainVersion(cfg);
-  const payload = JSON.stringify({ graph, version });
-  step(`${graph.meta.nodes} nodes · ${graph.meta.edges} threads · #${graph.meta.digest}`);
+  const first = graphPayload(cfg);
+  step(`${first.nodes} nodes · ${first.edges} threads · #${first.digest}`);
+
+  // Lazily-created conversational session (no MCP tools in the browser surface,
+  // this is the "talk to your brain + watch it grow" panel, not the full agent).
+  let session: Session | null = null;
+  const getSession = (): Session => {
+    if (!session) {
+      const recap = recapForPrompt(latestSessionRecap(cfg.store));
+      session = new Session(cfg, { useTools: false, recap });
+    }
+    return session;
+  };
+
+  // Cached engine health so a missing Ollama doesn't stall every keystroke.
+  let health = { at: 0, ok: false };
+  const engineHealthy = async (): Promise<boolean> => {
+    const now = Date.now();
+    if (now - health.at < HEALTH_TTL_MS) return health.ok;
+    let ok = false;
+    try {
+      ok = await new EngineClient(cfg.engine).health();
+    } catch {
+      ok = false;
+    }
+    health = { at: now, ok };
+    return ok;
+  };
+
+  // One thought at a time: a single Session isn't safe under concurrent sends.
+  let busy = false;
+
+  const handleChat = async (message: string): Promise<{ answer: string; engine: boolean }> => {
+    const s = getSession();
+    let answer: string;
+    let engine = false;
+    if (await engineHealthy()) {
+      try {
+        const r = await s.send(message);
+        answer = r.answer;
+        engine = true;
+      } catch {
+        answer = "i hit a snag reaching the engine just now. i still saved what you said. try again in a moment.";
+        s.recordExternalTurn(message, answer);
+      }
+    } else {
+      answer = NO_ENGINE_NOTE;
+      s.recordExternalTurn(message, answer);
+    }
+    // Grow: one node per exchange, chained into the net. Then drain the buffer so
+    // it stays bounded (growth is already persisted to disk).
+    const turn = s.lastTurn() ?? { at: new Date().toISOString(), prompt: message, answer };
+    try {
+      appendExchange(cfg.store, cfg.personaPath, turn);
+    } catch {
+      // a failed write must not break the reply; the net just won't grow this turn
+    }
+    s.drainTranscript();
+    return { answer, engine };
+  };
 
   const server = createServer((req, res) => {
+    void route(req, res).catch(() => {
+      if (!res.headersSent) {
+        res.writeHead(500, { "content-type": "text/plain" });
+        res.end("server error");
+      }
+    });
+  });
+
+  async function route(req: IncomingMessage, res: ServerResponse): Promise<void> {
     const urlPath = (req.url ?? "/").split("?")[0] ?? "/";
 
+    // Live graph: rebuilt on every request so growth shows up immediately.
     if (urlPath === "/graph.json") {
+      const payload = graphPayload(cfg);
       res.writeHead(200, { "content-type": MIME[".json"], "cache-control": "no-store" });
-      res.end(payload);
+      res.end(payload.json);
       return;
     }
 
-    // Whitelist static files only — no path traversal.
+    // Lightweight state: does the twin have an engine to talk back with?
+    if (urlPath === "/state") {
+      const ok = await engineHealthy();
+      res.writeHead(200, { "content-type": MIME[".json"], "cache-control": "no-store" });
+      res.end(JSON.stringify({ engine: ok, version: brainVersion(cfg) }));
+      return;
+    }
+
+    // Talk to your brain. Always grows the net; replies when an engine is up.
+    if (urlPath === "/chat") {
+      if (req.method !== "POST") {
+        res.writeHead(405, { "content-type": "text/plain" });
+        res.end("method not allowed");
+        return;
+      }
+      let body: string;
+      try {
+        body = await readBody(req);
+      } catch {
+        res.writeHead(413, { "content-type": MIME[".json"] });
+        res.end(JSON.stringify({ error: "message too large" }));
+        return;
+      }
+      let message = "";
+      try {
+        const parsed = JSON.parse(body || "{}") as { message?: unknown };
+        if (typeof parsed.message === "string") message = parsed.message.trim();
+      } catch {
+        message = "";
+      }
+      if (!message || message.length > MAX_MESSAGE_CHARS) {
+        res.writeHead(400, { "content-type": MIME[".json"] });
+        res.end(JSON.stringify({ error: "send a non-empty message under 8000 characters" }));
+        return;
+      }
+      if (busy) {
+        res.writeHead(200, { "content-type": MIME[".json"], "cache-control": "no-store" });
+        res.end(JSON.stringify({ answer: "one thought at a time. i'm still on your last message.", engine: false, busy: true }));
+        return;
+      }
+      busy = true;
+      try {
+        const out = await handleChat(message);
+        res.writeHead(200, { "content-type": MIME[".json"], "cache-control": "no-store" });
+        res.end(JSON.stringify(out));
+      } finally {
+        busy = false;
+      }
+      return;
+    }
+
+    // Static files: whitelist only, no path traversal.
     const name = urlPath === "/" ? "index.html" : urlPath.replace(/^\/+/, "");
     const allowed = name === "index.html" || name === "app.js";
     const file = join(dir, name);
@@ -74,14 +218,14 @@ export async function serveBrain(cfg: Config, opts: BrainServeOptions = {}): Pro
       return;
     }
     try {
-      const body = readFileSync(file);
+      const fileBody = readFileSync(file);
       res.writeHead(200, { "content-type": MIME[extname(file)] ?? "application/octet-stream" });
-      res.end(body);
+      res.end(fileBody);
     } catch {
       res.writeHead(500, { "content-type": "text/plain" });
       res.end("read error");
     }
-  });
+  }
 
   const port = await listen(server, opts.port ?? 7337);
   const url = `http://localhost:${port}/`;
@@ -97,9 +241,30 @@ export async function serveBrain(cfg: Config, opts: BrainServeOptions = {}): Pro
     server,
     close: () =>
       new Promise<void>((resolve) => {
-        server.close(() => resolve());
+        void (session ? session.close() : Promise.resolve()).finally(() => {
+          server.close(() => resolve());
+        });
       }),
   };
+}
+
+/** Read a request body with a hard size cap, so a runaway POST can't OOM us. */
+function readBody(req: IncomingMessage): Promise<string> {
+  return new Promise((resolve, reject) => {
+    let data = "";
+    let size = 0;
+    req.on("data", (chunk: Buffer) => {
+      size += chunk.length;
+      if (size > MAX_BODY_BYTES) {
+        reject(new Error("body too large"));
+        req.destroy();
+        return;
+      }
+      data += chunk.toString("utf8");
+    });
+    req.on("end", () => resolve(data));
+    req.on("error", reject);
+  });
 }
 
 /** Listen on the first free port at or after `start` (tries a small window). */
