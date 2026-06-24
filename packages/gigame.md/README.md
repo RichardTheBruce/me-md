@@ -1,6 +1,6 @@
 # gigame.md
 
-**me.md, pinned to the giga tier.** Same portable digital-twin core — this alias
+**me.md, pinned to the giga tier.** Same portable digital-twin core; this alias
 defaults the model lineup to the **256 GB+ class** ("giga"), the largest tier,
 instead of auto-detecting your hardware.
 
@@ -14,8 +14,8 @@ gigame up                 # boots straight into the giga tier
 gigame tiers              # show all three tiers + your detected hardware
 ```
 
-`gigame` is exactly `me` with `ME_TIER=giga` forced. Everything else — the
-orchestrator, security sentinel, loop verifier, RAG, MCP hands, self-states —
+`gigame` is exactly `me` with `ME_TIER=giga` forced. Everything else (the
+orchestrator, security sentinel, loop verifier, RAG, MCP hands, self-states)
 is the shared [`me.md`](https://github.com/RichardTheBruce/me-md) core.
 
 **Override:** an explicit `--tier <me|mega|giga>` flag still wins over the pin,

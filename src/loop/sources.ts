@@ -1,6 +1,6 @@
 /**
  * Source / citation checker. Part of the loop gate: when an agent hands back
- * research, did it cite real, reachable, reproducible sources — or dead links
+ * research, did it cite real, reachable, reproducible sources, or dead links
  * and things we can't verify? Extraction + classification are deterministic;
  * liveness is an optional network pass (skip it offline).
  */

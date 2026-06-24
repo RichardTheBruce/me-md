@@ -68,7 +68,7 @@ export async function checkForUpdate(repoRoot: string, timeoutMs = 2500): Promis
       if (typeof body.version === "string") latest = body.version;
     }
   } catch {
-    // offline / registry down / aborted — leave latest null
+    // offline / registry down / aborted: leave latest null
   }
   return { name, current: version, latest, newer: latest ? cmpSemver(latest, version) > 0 : false };
 }

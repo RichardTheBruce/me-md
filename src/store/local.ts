@@ -85,7 +85,7 @@ const BLANK_PERSONA = `# me
 
 Every decision you log (\`me journal add\`) and every note you index becomes part
 of "me" the next time the twin loads. Tell it who you are, how you decide, what
-you value — or just start journaling and let it accumulate.
+you value, or just start journaling and let it accumulate.
 
 ## Self-State Log (append-only)
 

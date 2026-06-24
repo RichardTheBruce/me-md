@@ -5,9 +5,9 @@ import { checkSources, type SourceReport } from "./sources.js";
 
 /**
  * The loop gate. For every agent output it runs three checks:
- *   1. security  — scan the output for leaked secrets / injection (block-critical)
- *   2. judge     — score against a rubric (SHIP / ITERATE / REJECT)
- *   3. sources   — extract citations, flag dead / unverifiable / ungrounded
+ *   1. security:  scan the output for leaked secrets / injection (block-critical)
+ *   2. judge:     score against a rubric (SHIP / ITERATE / REJECT)
+ *   3. sources:   extract citations, flag dead / unverifiable / ungrounded
  * Then the loop controller re-runs the agent with the aggregated critique until
  * everything passes or it hits the pass cap (default 5).
  */
@@ -66,7 +66,7 @@ export async function runGate(
     );
   } else if (security.verdict === "flag") {
     reasons.push(`security: ${security.reasons.join("; ")}`);
-    critiqueParts.push(`SECURITY: ${security.reasons.join("; ")} — remove or neutralize it.`);
+    critiqueParts.push(`SECURITY: ${security.reasons.join("; ")}. Remove or neutralize it.`);
     if (status === "pass") status = "iterate";
   }
 
@@ -165,7 +165,7 @@ export async function verifyLoop(task: AgentTask, opts: LoopOptions = {}): Promi
     const report = await runGate(task.instruction, output, opts);
     history.push({ pass, output, report });
     lastStatus = report.status;
-    log(`[${task.name}] pass ${pass}: ${report.status} — ${report.reasons.join(" | ")}`);
+    log(`[${task.name}] pass ${pass}: ${report.status}. ${report.reasons.join(" | ")}`);
 
     if (report.status === "pass") {
       return { name: task.name, output, passed: true, status: "pass", passes: pass, history };

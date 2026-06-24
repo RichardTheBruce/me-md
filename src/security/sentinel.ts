@@ -7,12 +7,12 @@ import type { EngineClient } from "../engine/client.js";
  * lied that it had, and did nothing.
  *
  * Two tiers, block-critical:
- *   0. Deterministic classifier — always on, no model. Inspects the tool name +
+ *   0. Deterministic classifier: always on, no model. Inspects the tool name +
  *      arguments and assigns a risk level from a fixed ruleset. This is what
  *      authoritatively BLOCKS critical (money-moving / irreversible) actions.
- *   1. Fast gate model (LlamaFirewall / Llama-Guard family) — prompt-injection
+ *   1. Fast gate model (LlamaFirewall / Llama-Guard family): prompt-injection
  *      and policy screen over the action payload. Optional; degrades if absent.
- *   2. Deep reviewer (Cisco Foundation-Sec-8B-Reasoning) — reasons about flagged
+ *   2. Deep reviewer (Cisco Foundation-Sec-8B-Reasoning): reasons about flagged
  *      actions and can ESCALATE to a block. Optional; degrades if absent.
  *
  * The model tiers can only ever make the verdict stricter, never weaker: the
@@ -62,7 +62,7 @@ export interface SentinelOptions {
 // --- deterministic ruleset -------------------------------------------------
 
 // Money movement: the highest-stakes class. Tested first because "send" also
-// appears in the comms class — "send funds" must win over "send message".
+// appears in the comms class: "send funds" must win over "send message".
 const MONEY =
   /\b(transfer|withdraw|wire|payout|refund|charge|disburse|remit|deposit|send (?:money|funds|payment|crypto|usdc|eth|btc)|move (?:money|funds))\b/i;
 
@@ -300,7 +300,7 @@ export interface ContentScan {
 /**
  * Scan an agent's OUTPUT for content that must never ship: leaked live
  * credentials (block) or smuggled prompt-injection instructions (flag). This is
- * deliberately narrow — unlike classifyAction it does not flag prose that merely
+ * deliberately narrow, unlike classifyAction it does not flag prose that merely
  * *discusses* risky actions.
  */
 export function scanContent(text: string): ContentScan {

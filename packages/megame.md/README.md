@@ -1,6 +1,6 @@
 # megame.md
 
-**me.md, pinned to the mega tier.** Same portable digital-twin core — this alias
+**me.md, pinned to the mega tier.** Same portable digital-twin core; this alias
 just defaults the model lineup to the **~128 GB class** ("mega") instead of
 auto-detecting your hardware.
 
@@ -14,8 +14,8 @@ megame up                 # boots straight into the mega tier
 megame tiers              # show all three tiers + your detected hardware
 ```
 
-`megame` is exactly `me` with `ME_TIER=mega` forced. Everything else — the
-orchestrator, security sentinel, loop verifier, RAG, MCP hands, self-states —
+`megame` is exactly `me` with `ME_TIER=mega` forced. Everything else (the
+orchestrator, security sentinel, loop verifier, RAG, MCP hands, self-states)
 is the shared [`me.md`](https://github.com/RichardTheBruce/me-md) core.
 
 **Override:** an explicit `--tier <me|mega|giga>` flag still wins over the pin,

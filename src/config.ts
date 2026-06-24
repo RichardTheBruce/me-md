@@ -92,9 +92,9 @@ export function loadEnv(repoRoot: string): void {
 
 /**
  * Resolve the active tier. Precedence:
- *   1. explicit override  (--tier flag, then ME_TIER env)  — transient, wins always
- *   2. saved choice        (~/.me.md/tier.json)            — the first-boot pick
- *   3. hardware auto-detect (RAM + VRAM probe)             — the default recommendation
+ *   1. explicit override  (--tier flag, then ME_TIER env):  transient, wins always
+ *   2. saved choice        (~/.me.md/tier.json):            the first-boot pick
+ *   3. hardware auto-detect (RAM + VRAM probe):             the default recommendation
  */
 export function resolveTier(opts: ConfigOptions = {}): TierDecision {
   const explicit = opts.tier ?? parseTier(process.env.ME_TIER);

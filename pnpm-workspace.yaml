@@ -2,7 +2,7 @@
 #
 # The ROOT package (me.md) is the whole engine: orchestrator, tiers, sentinel,
 # loop verifier, RAG, MCP. On `me up` it auto-detects your hardware and picks
-# the tier. The two packages below are THIN aliases — they install the same
+# the tier. The two packages below are THIN aliases: they install the same
 # core and just pin a bigger tier by default, for people who already know they
 # have the iron and don't want auto-detect second-guessing them.
 #

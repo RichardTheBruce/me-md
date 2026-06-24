@@ -39,7 +39,7 @@ Every output an agent produces passes the **loop gate** before it ships, and eve
 
 ## The three tiers
 
-The core code is the same everywhere; a tier only changes the model lineup. On boot, `me up` reads your RAM (`os.totalmem`) and VRAM (`nvidia-smi` / Apple unified memory / `rocm-smi`) and picks the largest tier your hardware clears. On your **first interactive boot** it shows that recommendation and lets you pick any of the three lineups — the choice is saved to `~/.me.md/tier.json` so later boots never re-ask (re-open it any time with `me up --pick`). Or skip the prompt entirely: pin a tier with `--tier` / `ME_TIER`, or install the matching alias package.
+The core code is the same everywhere; a tier only changes the model lineup. On boot, `me up` reads your RAM (`os.totalmem`) and VRAM (`nvidia-smi` / Apple unified memory / `rocm-smi`) and picks the largest tier your hardware clears. On your **first interactive boot** it shows that recommendation and lets you pick any of the three lineups. The choice is saved to `~/.me.md/tier.json` so later boots never re-ask (re-open it any time with `me up --pick`). Or skip the prompt entirely: pin a tier with `--tier` / `ME_TIER`, or install the matching alias package.
 
 Resolution precedence is `--tier` flag → `ME_TIER` env → your saved choice → hardware auto-detect, so an explicit override always wins and piped/CI boots never block on the prompt.
 
@@ -55,7 +55,7 @@ Resolution precedence is `--tier` flag → `ME_TIER` env → your saved choice �
 | `securityDeep` | `foundation-sec-8b-reasoning` | ← shared | ← shared |
 | `judge` | `prometheus-eval:7b-v2` | ← shared | ← shared |
 
-The safety lineup (gate / deep reviewer / judge) is **shared** — it never gets weaker on a smaller box. Every model is env-overridable (`ME_MODEL_*`), so pin the exact tag your host has pulled. `me tiers` prints this table with your detected hardware and the active tier.
+The safety lineup (gate / deep reviewer / judge) is **shared**. It never gets weaker on a smaller box. Every model is env-overridable (`ME_MODEL_*`), so pin the exact tag your host has pulled. `me tiers` prints this table with your detected hardware and the active tier.
 
 ```bash
 me                          # auto-detect and boot
@@ -76,7 +76,7 @@ npm install -g github:RichardTheBruce/me-md
 cp .env.example .env            # point ME_ENGINE_BASE_URL at your engine
 #   edit corpus.config.json to point at your .md vault on this host
 
-# 4. Boot once — it pulls the routed lineup for your tier, indexes, and talks
+# 4. Boot once: it pulls the routed lineup for your tier, indexes, and talks
 me up --pull
 me chat "what would I decide about X?"
 ```
@@ -93,11 +93,11 @@ me
 
 That is shorthand for `me up`, which self-heals the stack before handing you a prompt:
 
-1. **Engine** — if the engine is down and you are pointed at a local Ollama, it runs `ollama serve` for you and waits until it answers.
-2. **Models** — checks the routed lineup is present (`me up --pull` fetches any that are missing).
-3. **Index** — builds the RAG index on first run if it is not there yet.
-4. **Hands** — connects your MCP servers once and keeps them warm.
-5. **Prompt** — opens an interactive session that remembers the whole conversation.
+1. **Engine**: if the engine is down and you are pointed at a local Ollama, it runs `ollama serve` for you and waits until it answers.
+2. **Models**: checks the routed lineup is present (`me up --pull` fetches any that are missing).
+3. **Index**: builds the RAG index on first run if it is not there yet.
+4. **Hands**: connects your MCP servers once and keeps them warm.
+5. **Prompt**: opens an interactive session that remembers the whole conversation.
 
 ```
 me ▸ what would I decide about X?
@@ -121,24 +121,24 @@ curl -fsSL https://raw.githubusercontent.com/RichardTheBruce/me-md/main/scripts/
 irm https://raw.githubusercontent.com/RichardTheBruce/me-md/main/scripts/bootstrap.ps1 | iex
 ```
 
-## See your neural net — `me brain`
+## See your neural net: `me brain`
 
 Your world isn't a list of files; it's a shape. `me brain` (or `/mebrain` inside a session) projects every `.md` in your corpus into a 3D **quantum neural net** and opens it in your browser:
 
-- **nodes** are your files — persona core, memories, every note — sized by how connected they are;
+- **nodes** are your files (persona core, memories, every note), sized by how connected they are;
 - **threads** are the links between them: explicit `[[wikilinks]]` / markdown links, plus semantic kinship drawn from your embeddings once you've run `me index`;
-- **drag** to orbit and navigate your brain, **scroll** to zoom, and **MORPH** to reshape it — the sphere unfurls into its true semantic structure with a bloom that surges as it changes. **FREEZE** holds the rotation, **RESET** recenters, and the **CRYSTAL** panel tunes density, glow, and palette (warm gold ↔ violet).
+- **drag** to orbit and navigate your brain, **scroll** to zoom, and **MORPH** to reshape it: the sphere unfurls into its true semantic structure with a bloom that surges as it changes. **FREEZE** holds the rotation, **RESET** recenters, and the **CRYSTAL** panel tunes density, glow, and palette (warm gold ↔ violet).
 
-It runs fully local — a tiny built-in server, nothing leaves your machine (the 3D engine loads from a CDN the first time). The header stamps which release you're on, which self-state you've evolved to, and a digest of your corpus, so a glance tells you which "you" you're looking at.
+It runs fully local: a tiny built-in server, nothing leaves your machine (the 3D engine loads from a CDN the first time). The header stamps which release you're on, which self-state you've evolved to, and a digest of your corpus, so a glance tells you which "you" you're looking at.
 
 ```bash
 me brain                 # open the quantum view in your browser
 me brain --no-open       # just serve it and print the URL
 ```
 
-## Staying current — `me update`
+## Staying current: `me update`
 
-The package is immutable code; your `~/.me.md` store is the evolving you — so new capabilities ship without ever touching your self. `me update` checks the registry; `me update --apply` installs the latest release, and your persona, corpus, and self-states carry forward untouched. Every interactive boot prints a one-line nudge when a newer self is available (silence it with `ME_UPDATE_CHECK=0`).
+The package is immutable code; your `~/.me.md` store is the evolving you, so new capabilities ship without ever touching your self. `me update` checks the registry; `me update --apply` installs the latest release, and your persona, corpus, and self-states carry forward untouched. Every interactive boot prints a one-line nudge when a newer self is available (silence it with `ME_UPDATE_CHECK=0`).
 
 ```bash
 me update                # is there a newer me?
@@ -170,14 +170,14 @@ The package is immutable code; the *evolving you* lives in a per-install store a
 
 ## Versioned self-states
 
-Git is the time machine — and the repo is your store (`~/.me.md`), committed under a dedicated `me.md` identity that never touches your own git config. Each `me self snapshot` tags the persona plus a corpus digest; a self-state you do not like is one `me self rollback <tag>` away. `npm version` bumps map to self-state releases, so `npm install me.md@<version>` pins a specific you.
+Git is the time machine, and the repo is your store (`~/.me.md`), committed under a dedicated `me.md` identity that never touches your own git config. Each `me self snapshot` tags the persona plus a corpus digest; a self-state you do not like is one `me self rollback <tag>` away. `npm version` bumps map to self-state releases, so `npm install me.md@<version>` pins a specific you.
 
 ## Safety: the sentinel and the loop
 
-Born from a real bug — *"I asked my card to freeze itself, it lied and said yes, then did nothing."* Two layers stand between intent and damage, both deterministic-first so they hold even with no safety models served:
+Born from a real bug: *"I asked my card to freeze itself, it lied and said yes, then did nothing."* Two layers stand between intent and damage, both deterministic-first so they hold even with no safety models served:
 
-- **Security sentinel** — every MCP tool call is classified before it runs. Money movement, irreversible deletes, destructive git, prod deploys, and account-danger actions are *critical* and **blocked**; mutations, comms, and secret handling are *flagged*; plain reads pass. The deterministic classifier is authoritative for blocks; the model tiers (`securityGate`, then `securityDeep`) only *escalate* a verdict, never weaken it, and degrade gracefully when absent. Dry-run any call with `me guard`.
-- **Loop gate** — every agent output runs three checks: **security** (scan for leaked credentials / prompt-injection), **judge** (Prometheus-2 1-5 rubric → SHIP / ITERATE / REJECT), and **sources** (extract every URL, flag dead / unverifiable / ungrounded claims). Anything short of a pass feeds an actionable critique back to the agent, which re-runs until it passes or hits the cap (default 5). Run it over a file with `me gate`, or in code via `verifyLoop` / `verifyBatch`.
+- **Security sentinel**: every MCP tool call is classified before it runs. Money movement, irreversible deletes, destructive git, prod deploys, and account-danger actions are *critical* and **blocked**; mutations, comms, and secret handling are *flagged*; plain reads pass. The deterministic classifier is authoritative for blocks; the model tiers (`securityGate`, then `securityDeep`) only *escalate* a verdict, never weaken it, and degrade gracefully when absent. Dry-run any call with `me guard`.
+- **Loop gate**: every agent output runs three checks: **security** (scan for leaked credentials / prompt-injection), **judge** (Prometheus-2 1-5 rubric → SHIP / ITERATE / REJECT), and **sources** (extract every URL, flag dead / unverifiable / ungrounded claims). Anything short of a pass feeds an actionable critique back to the agent, which re-runs until it passes or hits the cap (default 5). Run it over a file with `me gate`, or in code via `verifyLoop` / `verifyBatch`.
 
 ## Phase 2: the Python sidecar
 
@@ -192,7 +192,7 @@ The orchestrator is pure TypeScript and needs no Python. When real hardware is a
 
 ## Built by RichardTheBruce
 
-`me.md` is built and maintained by **RichardTheBruce**. It is free and open under [Apache-2.0](LICENSE) — use it, fork it, ship it. The only payment asked is attribution:
+`me.md` is built and maintained by **RichardTheBruce**. It is free and open under [Apache-2.0](LICENSE): use it, fork it, ship it. The only payment asked is attribution:
 
 - ⭐ **Star the repo:** [github.com/RichardTheBruce/me-md](https://github.com/RichardTheBruce/me-md)
 - 👤 **Follow the author:** [@RichardTheBruce](https://github.com/RichardTheBruce)
@@ -203,4 +203,4 @@ If this twin earns a place on your machine and you want to buy me a coffee, send
 0x337c623fF3634b1dD2f64Ca3674aaFdB0cbdf7b4
 ```
 
-Entirely optional — the star and the follow mean just as much.
+Entirely optional. The star and the follow mean just as much.

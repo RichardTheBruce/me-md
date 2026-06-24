@@ -1,13 +1,13 @@
 /**
- * The three tiers of me.md. The CORE CODE is identical across all of them —
+ * The three tiers of me.md. The CORE CODE is identical across all of them:
  * the only thing a tier changes is which models the router and subsystems run.
  * Hardware is auto-detected on boot (see core/detect.ts) and the matching
  * profile becomes the default lineup. Every model is still env-overridable, so
  * you can pin the exact tag your host has pulled.
  *
- *   me.md     — a modern laptop/desktop with one capable GPU (24-48 GB VRAM)
- *   megame.md — a powerful workstation / multi-GPU rig (~128 GB VRAM)
- *   gigame.md — a giant rig / server (256 GB+ VRAM)
+ *   me.md:     a modern laptop/desktop with one capable GPU (24-48 GB VRAM)
+ *   megame.md: a powerful workstation / multi-GPU rig (~128 GB VRAM)
+ *   gigame.md: a giant rig / server (256 GB+ VRAM)
  *
  * Model names below are the recommended lineup. They are written as ollama-style
  * tags; set the exact tag your host serves via the ME_MODEL_* env vars.
@@ -60,11 +60,11 @@ export interface TierProfile {
 // safety floor does not get weaker on a smaller box. Pulled out to keep one
 // source of truth.
 const SHARED_SECURITY = {
-  // Meta LlamaFirewall family — fast always-on gate (prompt-injection / policy).
+  // Meta LlamaFirewall family: fast always-on gate (prompt-injection / policy).
   securityGate: "llama-guard3:8b",
-  // Cisco Foundation-Sec-8B-Reasoning — deep reviewer for flagged actions.
+  // Cisco Foundation-Sec-8B-Reasoning: deep reviewer for flagged actions.
   securityDeep: "foundation-sec-8b-reasoning",
-  // Prometheus-2 style evaluator — scores output against a rubric.
+  // Prometheus-2 style evaluator: scores output against a rubric.
   judge: "prometheus-eval:7b-v2",
 } as const;
 

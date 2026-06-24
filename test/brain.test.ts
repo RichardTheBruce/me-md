@@ -70,7 +70,7 @@ test("buildBrainGraph maps the world's files to nodes, links to edges", () => {
     const labels = g.nodes.map((n) => n.label).sort();
     assert.deepEqual(labels, ["a", "b", "m1", "me", "note-a"]);
 
-    // no embeddings without an index — falls back to link structure
+    // no embeddings without an index: falls back to link structure
     assert.equal(g.meta.embedded, false);
 
     // explicit links became edges: a->b and a->note-a and me->note-a
