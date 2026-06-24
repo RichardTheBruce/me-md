@@ -4,9 +4,10 @@
 // semantic structure) with a bloom that surges as it changes.
 //
 // The view is LIVE: the chat panel (bottom-left) talks to your twin and grows
-// the net one node per message. When the graph digest changes we dispose the
-// old scene objects and re-mount cleanly. Node positions are deterministic per
-// file, so existing stars hold their place and the new one simply appears.
+// the net one node per answered message (with no engine it replies honestly and
+// grows nothing). When the graph digest changes we dispose the old scene objects
+// and re-mount cleanly. Node positions are deterministic per file, so existing
+// stars hold their place and the new one simply appears.
 
 const $ = (id) => document.getElementById(id);
 const curtain = $("curtain");
@@ -499,8 +500,8 @@ async function main() {
   function updateDot(on) {
     chatDot.classList.toggle("off", !on);
     chatDot.title = on
-      ? "engine online: your brain can talk back"
-      : "no engine: messages still grow your net (run `me up`)";
+      ? "engine online: your brain can talk back and the net grows from it"
+      : "no engine: run `me up` to install + size your twin, then it thinks and grows";
   }
   function showGrew(delta) {
     grew.textContent = delta > 1 ? "✦ your net grew +" + delta : "✦ your net grew";

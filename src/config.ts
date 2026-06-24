@@ -34,9 +34,7 @@ export interface ModelConfig {
   fast: string;
   coder: string;
   embed: string;
-  /** Always-on fast security gate (prompt-injection / policy screen). */
-  securityGate: string;
-  /** Deep security reviewer for flagged actions. */
+  /** Deep security reviewer for flagged ACTIONS (not a speech filter). */
   securityDeep: string;
   /** Judge model that scores agent output against a rubric. */
   judge: string;
@@ -149,7 +147,6 @@ export function loadConfig(repoRoot: string, opts: ConfigOptions = {}): Config {
       fast: env("ME_MODEL_FAST", lineup.fast),
       coder: env("ME_MODEL_CODER", lineup.coder),
       embed: env("ME_MODEL_EMBED", lineup.embed),
-      securityGate: env("ME_MODEL_SECURITY_GATE", lineup.securityGate),
       securityDeep: env("ME_MODEL_SECURITY_DEEP", lineup.securityDeep),
       judge: env("ME_MODEL_JUDGE", lineup.judge),
     },

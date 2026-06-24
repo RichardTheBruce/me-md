@@ -10,13 +10,11 @@ if ! command -v node >/dev/null 2>&1; then
   exit 1
 fi
 
-if ! command -v ollama >/dev/null 2>&1; then
-  echo "==> installing ollama"
-  curl -fsSL https://ollama.com/install.sh | sh
-fi
-
 echo "==> installing me.md globally from github"
 npm install -g github:RichardTheBruce/me-md
 
-echo "==> booting (this will pull missing models on first run)"
-exec me up --pull
+# 'me up' is turnkey: on first run it stands up the local engine (installing it
+# if needed) and sizes one uncensored model to this machine, then opens the
+# prompt. Nothing else to install by hand.
+echo "==> booting (first run sets up the engine + pulls your model)"
+exec me up

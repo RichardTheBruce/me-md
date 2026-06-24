@@ -169,9 +169,12 @@ test("latestSessionRecap reconstructs your last line; recapForPrompt frames it",
   });
 });
 
-// --- server: talk to your brain + watch it grow, even with no engine ---------
+// --- server: with no engine, reply honestly and grow NOTHING -----------------
+// The old fallback echoed the user back and planted a node to fake growth. That
+// is gone: the net only grows from real thought, so a no-engine /chat must leave
+// the graph untouched and say so plainly.
 
-test("brain server: /state reports no engine and /chat still grows the net", async () => {
+test("brain server: /chat replies honestly and does NOT grow the net with no engine", async () => {
   await withStore(async (cfg) => {
     const brain = await serveBrain(cfg, { open: false });
     const nodesAt = async (): Promise<number> => {
@@ -191,8 +194,9 @@ test("brain server: /state reports no engine and /chat still grows the net", asy
       assert.equal(res.status, 200);
       const out = (await res.json()) as { answer: string; engine: boolean };
       assert.equal(out.engine, false);
-      assert.match(out.answer, /net/i); // the graceful note still confirms growth
-      assert.equal(await nodesAt(), before + 1); // the message became a star
+      assert.match(out.answer, /me up/i); // honest: points at the bootstrap, no fake growth
+      assert.doesNotMatch(out.answer, /saved what you said/i); // the old fake-work line is gone
+      assert.equal(await nodesAt(), before); // nothing thought, nothing grew
 
       // empty message is rejected
       const bad = await fetch(brain.url + "chat", {

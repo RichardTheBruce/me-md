@@ -32,6 +32,7 @@
     "me": "tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
     "test": "tsx --test test/*.test.ts",
+    "verify:weights": "tsx scripts/verify-weights.ts",
     "prepare": "npm run build",
     "prepublishOnly": "npm run build"
   },

@@ -15,7 +15,7 @@ export interface BootStatus {
 const isWin = process.platform === "win32";
 
 /** Is a binary on PATH? Uses `where` on Windows, `which` elsewhere. */
-function binExists(bin: string): boolean {
+export function binExists(bin: string): boolean {
   const probe = isWin ? "where" : "which";
   const res = spawnSync(probe, [bin], { stdio: "ignore", shell: isWin });
   return res.status === 0;
@@ -25,7 +25,8 @@ function sleep(ms: number): Promise<void> {
   return new Promise((r) => setTimeout(r, ms));
 }
 
-function isLocalOllama(baseUrl: string): boolean {
+/** True when the engine URL points at a local Ollama (vs a remote/hosted engine). */
+export function isLocalOllama(baseUrl: string): boolean {
   return /^https?:\/\/(localhost|127\.0\.0\.1)(:\d+)?\/v1\/?$/.test(baseUrl);
 }
 

@@ -27,8 +27,18 @@ export type {
   SessionOptions,
   SessionConnectInfo,
 } from "./core/orchestrator.js";
-export { ensureEngine, ensureModels, ensureIndex } from "./core/boot.js";
+export { ensureEngine, ensureModels, ensureIndex, binExists, isLocalOllama } from "./core/boot.js";
 export type { BootStatus } from "./core/boot.js";
+export {
+  bootstrapEngine,
+  planModels,
+  isTurnkey,
+  resolveOllamaBin,
+  defaultInstallOllama,
+} from "./engine/bootstrap.js";
+export type { BootstrapResult, BootstrapDeps, ModelPlan, EngineProbe } from "./engine/bootstrap.js";
+export { ABLITERATED_LADDER, EMBED_MODEL, FLOOR_FALLBACK, pickAbliterated } from "./engine/lineup.js";
+export type { Rung, LadderModel, LadderPick } from "./engine/lineup.js";
 export { buildIndex, retrieve } from "./rag/index.js";
 export { VectorStore, cosine } from "./rag/store.js";
 export { EngineClient } from "./engine/client.js";

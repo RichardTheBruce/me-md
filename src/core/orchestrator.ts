@@ -65,8 +65,9 @@ export class Session {
   private maxToolRounds: number;
   private security: boolean;
   private blockAt: RiskLevel;
-  // Security model tiers, set on connect() only if the host actually serves them.
-  private gateModel: string | undefined;
+  // Deep ACTION reviewer, set on connect() only if the host actually serves it.
+  // There is no speech gate: me.md is uncensored, the content-moderation model
+  // was dropped on purpose. Action safety stays; word policing does not.
   private deepModel: string | undefined;
   private log: (msg: string) => void;
   /** Every exchange this session has had, for encode() to flush to disk. */
@@ -101,18 +102,14 @@ export class Session {
     this.tools = toolsToOpenAI(remoteTools);
     this.log(`tools available: ${this.tools.length}`);
 
-    // The deterministic sentinel is always on. The model tiers only engage if
-    // the host actually serves them, so we never hammer a missing endpoint.
+    // The deterministic sentinel is always on. The deep ACTION reviewer only
+    // engages if the host actually serves it, so we never hammer a missing
+    // endpoint. No speech gate runs here; uncensored is the point.
     if (this.security) {
       const have = new Set(await this.engine.listModels());
       const present = (m: string): boolean => have.has(m) || have.has(`${m}:latest`);
-      this.gateModel = present(this.cfg.models.securityGate) ? this.cfg.models.securityGate : undefined;
       this.deepModel = present(this.cfg.models.securityDeep) ? this.cfg.models.securityDeep : undefined;
-      const tiers = [
-        "deterministic",
-        this.gateModel ? "gate" : null,
-        this.deepModel ? "deep" : null,
-      ].filter(Boolean);
+      const tiers = ["deterministic", this.deepModel ? "deep" : null].filter(Boolean);
       this.log(`sentinel: block@${this.blockAt} · tiers: ${tiers.join("+")}`);
     }
 
@@ -183,7 +180,6 @@ export class Session {
           const finding = await reviewAction(call.function.name, args, {
             blockAt: this.blockAt,
             engine: this.engine,
-            gateModel: this.gateModel,
             deepModel: this.deepModel,
             onStep: this.log,
           });

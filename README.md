@@ -29,7 +29,7 @@ The inference engine is decoupled from the orchestrator over an OpenAI-compatibl
    | model   |  | corpus  |   | core     |    | (your 13   |
    +----+----+  +----+----+   +----------+    |  servers)  |
         |            |                        +-----+------+
-        |            |  embeddings (qwen3-embedding)|
+        |            | embeddings (nomic-embed-text)|
    +----v------------v------------------------------v----+
    |  engine: OpenAI-compatible HTTP  (Ollama -> vLLM)   |
    +----------------------------------------------------+
@@ -43,19 +43,20 @@ The core code is the same everywhere; a tier only changes the model lineup. On b
 
 Resolution precedence is `--tier` flag → `ME_TIER` env → your saved choice → hardware auto-detect, so an explicit override always wins and piped/CI boots never block on the prompt.
 
+Every model below is a real, currently-pullable **abliterated** (uncensored) tag: refusal vectors removed, intelligence intact. me.md runs uncensored by design, so the lineup is uncensored by default.
+
 | | **me.md** | **megame.md** | **gigame.md** |
 | --- | --- | --- | --- |
-| Hardware | laptop/desktop, 1 GPU (~24-48 GB VRAM, 32 GB+ RAM) | workstation / multi-GPU (~128 GB VRAM, 128 GB+ RAM) | giant rig / server (256 GB+ VRAM & RAM) |
-| `agent` (orchestrator) | `qwen3.5-35b-a3b` | `glm-4.7` | `glm-5.2` |
-| `reasoner` | `qwen3.5-32b` | `deepseek-v4-flash` | `kimi-k2.6` |
-| `coder` | `qwen3-coder:30b-a3b` | `glm-4.6` | `qwen3-coder:480b` |
-| `fast` | `qwen3:4b` | `qwen3:8b` | `qwen3:8b` |
-| `embed` | `qwen3-embedding:4b` | `qwen3-embedding:8b` | `qwen3-embedding:8b` |
-| `securityGate` | `llama-guard3:8b` | ← shared | ← shared |
+| Hardware | any modern laptop/desktop (8 GB+ RAM, runs CPU-only) | workstation / single big GPU (~48 GB+ VRAM, 64 GB+ RAM) | multi-GPU rig / server (~80 GB+ VRAM, 128 GB+ RAM) |
+| `agent` (orchestrator) | `llama3.1-8b-abliterated` | `llama3.3-abliterated:70b` | `llama3.3-abliterated:70b` |
+| `reasoner` | `llama3.1-8b-abliterated` | `llama3.3-abliterated:70b` | `llama3.3-abliterated:70b` |
+| `coder` | `llama3.1-8b-abliterated` | `qwen2.5-abliterate:32b` | `llama3.3-abliterated:70b` |
+| `fast` | `qwen2.5-abliterate:3b` | `llama3.1-8b-abliterated` | `qwen2.5-abliterate:32b` |
+| `embed` | `nomic-embed-text` | ← shared | ← shared |
 | `securityDeep` | `foundation-sec-8b-reasoning` | ← shared | ← shared |
 | `judge` | `prometheus-eval:7b-v2` | ← shared | ← shared |
 
-The safety lineup (gate / deep reviewer / judge) is **shared**. It never gets weaker on a smaller box. Every model is env-overridable (`ME_MODEL_*`), so pin the exact tag your host has pulled. `me tiers` prints this table with your detected hardware and the active tier.
+The chat lineup is **abliterated**, so speech is uncensored. Action safety is separate and always on: a deterministic sentinel gates every tool call, and `securityDeep` reviews the flagged ones. There is **no content-moderation model** (we dropped Llama-Guard on purpose): uncensored speech, honest action. The safety lineup (deep reviewer / judge) is **shared** and never gets weaker on a smaller box. Every model is env-overridable (`ME_MODEL_*`), so pin the exact tag your host has pulled (the turnkey boot sizes one uncensored model to your actual RAM, while a pinned tier pulls the full set above). `me tiers` prints this table with your detected hardware and the active tier.
 
 ```bash
 me                          # auto-detect and boot
@@ -176,7 +177,7 @@ Git is the time machine, and the repo is your store (`~/.me.md`), committed unde
 
 Born from a real bug: *"I asked my card to freeze itself, it lied and said yes, then did nothing."* Two layers stand between intent and damage, both deterministic-first so they hold even with no safety models served:
 
-- **Security sentinel**: every MCP tool call is classified before it runs. Money movement, irreversible deletes, destructive git, prod deploys, and account-danger actions are *critical* and **blocked**; mutations, comms, and secret handling are *flagged*; plain reads pass. The deterministic classifier is authoritative for blocks; the model tiers (`securityGate`, then `securityDeep`) only *escalate* a verdict, never weaken it, and degrade gracefully when absent. Dry-run any call with `me guard`.
+- **Security sentinel**: every MCP tool call is classified before it runs. Money movement, irreversible deletes, destructive git, prod deploys, and account-danger actions are *critical* and **blocked**; mutations, comms, and secret handling are *flagged*; plain reads pass. The deterministic classifier is authoritative for blocks; the deep reviewer (`securityDeep`) only *escalates* a flagged action, never weakens a verdict, and degrades gracefully when absent. This gate is about **actions, not speech**: there is no content-moderation model, so the twin talks freely while its hands stay honest. Dry-run any call with `me guard`.
 - **Loop gate**: every agent output runs three checks: **security** (scan for leaked credentials / prompt-injection), **judge** (Prometheus-2 1-5 rubric → SHIP / ITERATE / REJECT), and **sources** (extract every URL, flag dead / unverifiable / ungrounded claims). Anything short of a pass feeds an actionable critique back to the agent, which re-runs until it passes or hits the cap (default 5). Run it over a file with `me gate`, or in code via `verifyLoop` / `verifyBatch`.
 
 ## Phase 2: the Python sidecar

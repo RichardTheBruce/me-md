@@ -5,13 +5,19 @@
  * profile becomes the default lineup. Every model is still env-overridable, so
  * you can pin the exact tag your host has pulled.
  *
- *   me.md:     a modern laptop/desktop with one capable GPU (24-48 GB VRAM)
- *   megame.md: a powerful workstation / multi-GPU rig (~128 GB VRAM)
- *   gigame.md: a giant rig / server (256 GB+ VRAM)
+ *   me.md:     any modern laptop or desktop (runs CPU-only, better with a GPU)
+ *   megame.md: a powerful workstation / single big GPU (~48 GB+ VRAM)
+ *   gigame.md: a giant rig / multi-GPU server (~80 GB+ VRAM)
  *
- * Model names below are the recommended lineup. They are written as ollama-style
- * tags; set the exact tag your host serves via the ME_MODEL_* env vars.
+ * Every model below is a real, currently-pullable abliterated (uncensored) tag,
+ * drawn from the verified ladder in engine/lineup.ts. The turnkey boot does not
+ * blindly pull a whole tier: it sizes ONE uncensored model to your actual RAM
+ * (engine/bootstrap.ts) so a thin laptop still gets a working twin. These tier
+ * lineups are the nominal class presets, used when you pin a tier with --tier
+ * and pull the full set yourself.
  */
+
+import { ABLITERATED_LADDER, EMBED_MODEL } from "./engine/lineup.js";
 
 export type Tier = "me" | "mega" | "giga";
 
@@ -35,9 +41,7 @@ export interface TierModels {
   coder: string;
   /** Embeddings for retrieval. */
   embed: string;
-  /** Always-on security gate (fast prompt-injection / policy screen). */
-  securityGate: string;
-  /** Deep security reviewer for flagged actions. */
+  /** Deep security reviewer for flagged ACTIONS (not a speech filter). */
   securityDeep: string;
   /** Judge model that scores agent output against a rubric (SHIP/ITERATE/REJECT). */
   judge: string;
@@ -56,15 +60,15 @@ export interface TierProfile {
   models: TierModels;
 }
 
-// The security gate, deep reviewer, and judge are shared across all tiers: the
-// safety floor does not get weaker on a smaller box. Pulled out to keep one
-// source of truth.
+// The deep reviewer and judge are shared across all tiers: the action-safety
+// floor does not get weaker on a smaller box. There is deliberately NO speech
+// gate here. me.md is uncensored: we dropped the content-moderation model
+// (Llama-Guard) on purpose. What stays is ACTION safety, the deterministic
+// sentinel in security/sentinel.ts plus this deep reviewer for risky tool calls.
 const SHARED_SECURITY = {
-  // Meta LlamaFirewall family: fast always-on gate (prompt-injection / policy).
-  securityGate: "llama-guard3:8b",
-  // Cisco Foundation-Sec-8B-Reasoning: deep reviewer for flagged actions.
+  // Cisco Foundation-Sec-8B-Reasoning: deep reviewer for flagged ACTIONS.
   securityDeep: "foundation-sec-8b-reasoning",
-  // Prometheus-2 style evaluator: scores output against a rubric.
+  // Prometheus-2 style evaluator: scores agent OUTPUT against a rubric.
   judge: "prometheus-eval:7b-v2",
 } as const;
 
@@ -73,15 +77,17 @@ export const TIER_PROFILES: Record<Tier, TierProfile> = {
     tier: "me",
     pkg: "me.md",
     label: "me.md",
-    hardware: "modern laptop/desktop, one capable GPU (~24-48 GB VRAM, 32 GB+ RAM)",
-    minRamGb: 24,
-    minVramGb: 20,
+    hardware: "any modern laptop or desktop (8 GB+ RAM; runs CPU-only, faster with a GPU)",
+    minRamGb: 8,
+    minVramGb: 0,
     models: {
-      agent: "qwen3.5-35b-a3b",
-      reasoner: "qwen3.5-32b",
-      coder: "qwen3-coder:30b-a3b",
-      fast: "qwen3:4b",
-      embed: "qwen3-embedding:4b",
+      // Laptop class: one small uncensored model carries the chat lanes; the
+      // bootstrap may downsize to the 3B floor on a thin machine.
+      agent: ABLITERATED_LADDER.low.tag,
+      reasoner: ABLITERATED_LADDER.low.tag,
+      coder: ABLITERATED_LADDER.low.tag,
+      fast: ABLITERATED_LADDER.floor.tag,
+      embed: EMBED_MODEL.tag,
       ...SHARED_SECURITY,
     },
   },
@@ -89,15 +95,15 @@ export const TIER_PROFILES: Record<Tier, TierProfile> = {
     tier: "mega",
     pkg: "megame.md",
     label: "megame.md",
-    hardware: "powerful workstation / multi-GPU rig (~128 GB VRAM, 128 GB+ RAM)",
-    minRamGb: 96,
-    minVramGb: 96,
+    hardware: "workstation / single big GPU (~48 GB+ VRAM, 64 GB+ RAM)",
+    minRamGb: 64,
+    minVramGb: 40,
     models: {
-      agent: "glm-4.7",
-      reasoner: "deepseek-v4-flash",
-      coder: "glm-4.6",
-      fast: "qwen3:8b",
-      embed: "qwen3-embedding:8b",
+      agent: ABLITERATED_LADDER.high.tag,
+      reasoner: ABLITERATED_LADDER.high.tag,
+      coder: ABLITERATED_LADDER.mid.tag,
+      fast: ABLITERATED_LADDER.low.tag,
+      embed: EMBED_MODEL.tag,
       ...SHARED_SECURITY,
     },
   },
@@ -105,15 +111,15 @@ export const TIER_PROFILES: Record<Tier, TierProfile> = {
     tier: "giga",
     pkg: "gigame.md",
     label: "gigame.md",
-    hardware: "giant rig / server (256 GB+ VRAM, 256 GB+ RAM)",
-    minRamGb: 192,
-    minVramGb: 192,
+    hardware: "multi-GPU rig / server (~80 GB+ VRAM, 128 GB+ RAM)",
+    minRamGb: 128,
+    minVramGb: 80,
     models: {
-      agent: "glm-5.2",
-      reasoner: "kimi-k2.6",
-      coder: "qwen3-coder:480b",
-      fast: "qwen3:8b",
-      embed: "qwen3-embedding:8b",
+      agent: ABLITERATED_LADDER.high.tag,
+      reasoner: ABLITERATED_LADDER.high.tag,
+      coder: ABLITERATED_LADDER.high.tag,
+      fast: ABLITERATED_LADDER.mid.tag,
+      embed: EMBED_MODEL.tag,
       ...SHARED_SECURITY,
     },
   },

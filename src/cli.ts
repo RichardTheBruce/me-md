@@ -6,7 +6,8 @@ import { fileURLToPath } from "node:url";
 import { loadConfig, loadEnv, type Config } from "./config.js";
 import { parseTier, pickTier, TIER_PROFILES, type Tier } from "./tiers.js";
 import { ask, Session } from "./core/orchestrator.js";
-import { ensureEngine, ensureIndex, ensureModels } from "./core/boot.js";
+import { ensureIndex } from "./core/boot.js";
+import { bootstrapEngine } from "./engine/bootstrap.js";
 import { EngineClient } from "./engine/client.js";
 import { buildIndex } from "./rag/index.js";
 import { addJournalEntry } from "./journal/journal.js";
@@ -102,7 +103,7 @@ const HELP = `me.md - your portable digital twin
 
 usage:
   me                        boot the whole neural net + open an interactive prompt
-  me up [--pull]            same as bare 'me' (--pull fetches missing models)
+  me up                     same as bare 'me' (installs + sizes the engine on first run)
   me chat "<prompt>"        one-shot: talk to the twin (persona + RAG + MCP tools)
   me index                  build/refresh the index over your .md world
   me journal add "<entry>"  append a decision to your persona core
@@ -119,7 +120,6 @@ usage:
   me health                 check engine reachability + model lineup
 
 flags:
-  --pull                    (with up) pull any missing models via ollama
   --no-tools                start the session without MCP tools
   --pick                    (with up) re-open the interactive lineup picker
   --port <n>                (with brain) serve the neural net on a specific port
@@ -192,22 +192,37 @@ async function up(repoRoot: string, cfgIn: Config, flags: Set<string>): Promise<
     }
   }
 
-  const eng = await ensureEngine(cfg, step);
-  console.error(`engine: ${eng.detail}`);
-  if (!eng.ok) {
+  // Turnkey bootstrap: reach a hosted engine, or stand up a local Ollama,
+  // silently installing it and sizing one uncensored model to this machine on
+  // first run. No growth-only fallback: if there's no real brain, we say so.
+  const boot = await bootstrapEngine(cfg, { log: step });
+  console.error(`engine: ${boot.detail}`);
+  if (!boot.ok) {
     console.error(
-      "\ncan't boot the neural net without an engine.\n" +
-        "  - install Ollama:  https://ollama.com\n" +
-        "  - or point ME_ENGINE_BASE_URL at a running engine in .env\n",
+      "\ncan't boot the neural net: no engine.\n" +
+        "  - local:  install Ollama from https://ollama.com (me up auto-installs it next run)\n" +
+        "  - hosted: point ME_ENGINE_BASE_URL at a running OpenAI-compatible engine in .env\n",
     );
     return 1;
   }
-
-  const mod = await ensureModels(cfg, step, flags.has("--pull"));
-  console.error(`models: ${mod.detail}`);
-  if (!mod.ok) {
-    console.error("\nrerun with --pull to fetch them, or pull manually with ollama.\n");
-    return 1;
+  // Turnkey path: route every chat lane onto the one hardware-sized model.
+  if (boot.primaryModel) {
+    cfg = {
+      ...cfg,
+      models: {
+        ...cfg.models,
+        reasoner: boot.primaryModel,
+        agent: boot.primaryModel,
+        fast: boot.primaryModel,
+        coder: boot.primaryModel,
+      },
+    };
+  }
+  if (boot.belowFloor) {
+    console.error(
+      "  (thin host: running the smallest abliterated twin. For more headroom, " +
+        "point ME_ENGINE_BASE_URL at a bigger box or a hosted engine.)",
+    );
   }
 
   const idx = await ensureIndex(cfg, step);
@@ -546,7 +561,7 @@ async function main(): Promise<void> {
         `models: reasoner=${cfg.models.reasoner} agent=${cfg.models.agent} fast=${cfg.models.fast} coder=${cfg.models.coder} embed=${cfg.models.embed}`,
       );
       console.log(
-        `safety: gate=${cfg.models.securityGate} deep=${cfg.models.securityDeep} judge=${cfg.models.judge}`,
+        `safety: action-sentinel=deterministic deep=${cfg.models.securityDeep} judge=${cfg.models.judge} (uncensored speech, no content gate)`,
       );
       break;
     }

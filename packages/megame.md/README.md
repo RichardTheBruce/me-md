@@ -21,6 +21,6 @@ is the shared [`me.md`](https://github.com/RichardTheBruce/me-md) core.
 **Override:** an explicit `--tier <me|mega|giga>` flag still wins over the pin,
 so `megame up --tier giga` runs the giga lineup.
 
-Mega tier default models: `agent=glm-4.7 · reason=deepseek-v4-flash · code=glm-4.6`.
+Mega tier default models: `agent + reason = huihui_ai/llama3.3-abliterated:70b-instruct-q4_K_M · code = huihui_ai/qwen2.5-abliterate:32b`.
 Point `ME_ENGINE_BASE_URL` at your engine (Ollama or any OpenAI-compatible
 server) and override any individual model with the `ME_MODEL_*` env vars.

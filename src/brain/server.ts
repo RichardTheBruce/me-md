@@ -38,10 +38,10 @@ const MAX_BODY_BYTES = 65536;
 /** Engine health is cached briefly so /chat never hammers a missing endpoint. */
 const HEALTH_TTL_MS = 4000;
 
-const NO_ENGINE_NOTE =
-  "i saved what you said. it's now part of your net (watch it grow). " +
-  "i can't think out loud yet, though: no local engine is running. " +
-  "start one with `me up` (Ollama) and i'll talk back.";
+const NO_ENGINE_REPLY =
+  "no local engine is running, so there's nothing to think with yet, and i won't " +
+  "pretend otherwise. start your twin with `me up` (it installs and sizes the engine " +
+  "on first run), then talk to me here and the net will grow from real thought.";
 
 /** Where the static brain app lives. Works from dist (built) and src (tsx). */
 function assetsDir(cfg: Config): string {
@@ -69,7 +69,8 @@ function graphPayload(cfg: Config): { json: string; nodes: number; edges: number
 /**
  * Build the neural-net graph from your world and serve the quantum view on a
  * local port. The view is live: it talks to your twin (POST /chat) and grows a
- * node every message, and /graph.json rebuilds on request so new stars appear.
+ * node on every answered message, and /graph.json rebuilds on request so new
+ * stars appear. With no engine it replies honestly and grows nothing.
  */
 export async function serveBrain(cfg: Config, opts: BrainServeOptions = {}): Promise<BrainServer> {
   const step = opts.onStep ?? (() => {});
@@ -109,32 +110,33 @@ export async function serveBrain(cfg: Config, opts: BrainServeOptions = {}): Pro
   let busy = false;
 
   const handleChat = async (message: string): Promise<{ answer: string; engine: boolean }> => {
+    // No engine, no growth. The net grows from real thought, not from echoing
+    // the user back at themselves: that was the old fake-work fallback, removed.
+    if (!(await engineHealthy())) {
+      return { answer: NO_ENGINE_REPLY, engine: false };
+    }
     const s = getSession();
-    let answer: string;
-    let engine = false;
-    if (await engineHealthy()) {
-      try {
-        const r = await s.send(message);
-        answer = r.answer;
-        engine = true;
-      } catch {
-        answer = "i hit a snag reaching the engine just now. i still saved what you said. try again in a moment.";
-        s.recordExternalTurn(message, answer);
-      }
-    } else {
-      answer = NO_ENGINE_NOTE;
-      s.recordExternalTurn(message, answer);
-    }
-    // Grow: one node per exchange, chained into the net. Then drain the buffer so
-    // it stays bounded (growth is already persisted to disk).
-    const turn = s.lastTurn() ?? { at: new Date().toISOString(), prompt: message, answer };
     try {
-      appendExchange(cfg.store, cfg.personaPath, turn);
+      const r = await s.send(message);
+      // Grow only on a real answer: one node per exchange, chained into the net.
+      // Then drain the buffer (growth is already persisted to disk).
+      const turn = s.lastTurn() ?? { at: new Date().toISOString(), prompt: message, answer: r.answer };
+      try {
+        appendExchange(cfg.store, cfg.personaPath, turn);
+      } catch {
+        // a failed write must not break the reply; the net just won't grow this turn
+      }
+      s.drainTranscript();
+      return { answer: r.answer, engine: true };
     } catch {
-      // a failed write must not break the reply; the net just won't grow this turn
+      // The engine looked up but the send failed: a transient snag, not a thought.
+      // Don't plant a node for it.
+      s.drainTranscript();
+      return {
+        answer: "i hit a snag reaching the engine just now. try again in a moment.",
+        engine: false,
+      };
     }
-    s.drainTranscript();
-    return { answer, engine };
   };
 
   const server = createServer((req, res) => {
@@ -165,7 +167,8 @@ export async function serveBrain(cfg: Config, opts: BrainServeOptions = {}): Pro
       return;
     }
 
-    // Talk to your brain. Always grows the net; replies when an engine is up.
+    // Talk to your brain. Replies and grows the net when an engine is up; with
+    // no engine it says so honestly and grows nothing.
     if (urlPath === "/chat") {
       if (req.method !== "POST") {
         res.writeHead(405, { "content-type": "text/plain" });
