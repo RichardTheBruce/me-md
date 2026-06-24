@@ -225,7 +225,8 @@ async function main() {
   });
   let points = new THREE.Points(pgeo, pmat);
   scene.add(points);
-  recolor();
+  // node colors are set by recolor() below, once the edge buffers exist
+  // (recolor() also derives edge colors, so it must run after `pairs`/`egeo`).
 
   // ---- edges ---------------------------------------------------------------
   const pairs = new Int32Array(edges.length * 2);
@@ -271,7 +272,8 @@ async function main() {
     }
     egeo.attributes.position.needsUpdate = true;
   }
-  rebuildEdgeColors();
+  // first paint: colorize nodes, then derive edge colors from them.
+  recolor();
 
   // density slider: edges are sorted strong->weak, so trimming drops kinship first
   function applyDensity(pct) {
@@ -435,4 +437,10 @@ async function main() {
   requestAnimationFrame(loop);
 }
 
-main();
+main().catch((e) => {
+  fail(
+    "the net hit a snag while starting up.<br/><br/><code>" +
+      String((e && e.stack) || e) +
+      "</code>",
+  );
+});
